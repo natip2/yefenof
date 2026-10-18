@@ -5520,5 +5520,16 @@
     "hebrewDateStr": "ה׳ באייר",
     "hebrewYear": "תשפד",
     "donor": ""
+  },
+  {
+    "id": "csv_503",
+    "name": "שלמה ״מוצי״ הוד ז״ל",
+    "parentName": "",
+    "gender": "m",
+    "hebrewDay": 28,
+    "hebrewMonth": 7,
+    "hebrewDateStr": "כ״ח בתשרי",
+    "hebrewYear": "תשפ״ז",
+    "donor": ""
   }
 ]

@@ -25,7 +25,7 @@ window.PRAYERS_CONFIG = {
 
     // ── הגדרות כלליות ─────────────────────────────────────────────────
     // גרסת קובץ הגדרות (מונע דריסה ע"י זיכרון מקומי ישן בעת עדכון הקובץ)
-    configVersion: 1792353800000,
+    configVersion: 1792354800000,
 
     // משך הזמן שכל מודעה/שקופית מוצגת בשניות (ברירת מחדל: 30)
     slideDurationSeconds: 30,
@@ -636,7 +636,8 @@ window.PRAYERS_CONFIG = {
         { name: "רבקה", parentName: "מרגלית", gender: "f", hebrewDay: 19, hebrewMonth: 9, hebrewDateStr: "י״ט בכסלו", hebrewYear: "תשפה", donor: "" },
         { name: "רותי קלדרון", parentName: "שמחה", gender: "f", hebrewDay: 4, hebrewMonth: 12, hebrewDateStr: "ד׳ באדר", hebrewYear: "תשפה", donor: "" },
         { name: "שרה", parentName: "דינה", gender: "f", hebrewDay: 5, hebrewMonth: 12, hebrewDateStr: "ה׳ באדר", hebrewYear: "תשפו", donor: "" },
-        { name: "אילנה", parentName: "עזיזה", gender: "f", hebrewDay: 5, hebrewMonth: 2, hebrewDateStr: "ה׳ באייר", hebrewYear: "תשפד", donor: "" }
+        { name: "אילנה", parentName: "עזיזה", gender: "f", hebrewDay: 5, hebrewMonth: 2, hebrewDateStr: "ה׳ באייר", hebrewYear: "תשפד", donor: "" },
+        { name: "שלמה ״מוצי״ הוד ז״ל", parentName: "", gender: "m", hebrewDay: 28, hebrewMonth: 7, hebrewDateStr: "כ״ח בתשרי", hebrewYear: "תשפ״ז", donor: "" }
     ],
 
     // ── פרטי תרומות, חשבון בנק וקישורים (שקופית 5) ───────────────────
@@ -738,9 +739,9 @@ window.PRAYERS_CONFIG = {
         footerBlessing: "בברכת גמר חתימה טובה! תזכו לשנים רבות, נעימות וטובות!"
     },
 
-    // ── מודעת אבל והשתתפות בצער ──────────────
+    // ── מודעת אבל והשתתפות בצער (בארכיון / מושבתת) ──────────────
     condolenceNotice: {
-        enabled: true,
+        enabled: false,
         durationSeconds: 10,
         title: "ברוך דיין האמת",
         subtitle: "הודעת אבל והשתתפות בצער",

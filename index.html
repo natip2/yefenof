@@ -315,6 +315,7 @@
             padding: 0.7vh 0.9vw;
             border-bottom: 1.5px solid rgba(190, 150, 60, 0.35);
             background: transparent;
+            white-space: nowrap;
         }
 
         .prayer-row:last-child {
@@ -325,12 +326,16 @@
             display: flex;
             align-items: baseline;
             gap: 1.0vw;
+            flex-wrap: nowrap;
+            white-space: nowrap;
+            min-width: 0;
         }
 
         .prayer-bullet-icon {
             color: #a8781a;
             font-size: 1.2vw;
             text-shadow: 0 0 5px rgba(200, 150, 50, 0.7);
+            flex-shrink: 0;
         }
 
         .prayer-label {
@@ -341,6 +346,8 @@
             letter-spacing: 0.5px;
             text-shadow: 0 1px 2px rgba(255, 255, 255, 0.9);
             min-width: 6.8vw;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
 
         .prayer-desc {
@@ -349,6 +356,7 @@
             font-weight: 700;
             color: #2b1d0a;
             text-shadow: 0 1px 1px rgba(255, 255, 255, 0.8);
+            white-space: nowrap;
         }
 
         .prayer-time-value {
@@ -363,6 +371,8 @@
                 0 0 8px rgba(200, 160, 60, 0.4);
             min-width: 6vw;
             text-align: center;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
 
         .prayer-time-text {
@@ -371,38 +381,55 @@
             font-weight: 800;
             color: #6e480e;
             text-shadow: 0 1px 1px rgba(255, 255, 255, 0.8);
+            white-space: nowrap;
+            flex-shrink: 0;
         }
 
-        /* ── Specialized compact sizing for Slide 2 (Shabbat - 8 items) ── */
+        /* ── Specialized compact sizing for Slide 2 (Shabbat - 9 items, single line each) ── */
         #slide2 .slide-header-section {
-            margin-bottom: 0.4vh;
+            margin-bottom: 0.3vh;
         }
 
         #slide2 .prayers-list-seamless {
-            margin-top: 0.2vh;
+            margin-top: 0.1vh;
             gap: 0;
         }
 
         #slide2 .prayer-row {
-            padding: 0.42vh 0.8vw;
+            padding: 0.34vh 0.6vw;
+            white-space: nowrap;
+        }
+
+        #slide2 .prayer-info {
+            gap: 0.65vw;
+            flex-wrap: nowrap;
+            white-space: nowrap;
         }
 
         #slide2 .prayer-label {
-            font-size: 1.55vw;
-            min-width: 6.2vw;
+            font-size: 1.42vw;
+            min-width: 5.8vw;
+            white-space: nowrap;
         }
 
         #slide2 .prayer-desc {
-            font-size: 1.22vw;
+            font-size: 1.08vw;
+            white-space: nowrap;
         }
 
         #slide2 .prayer-time-value {
-            font-size: 1.55vw;
-            min-width: 5.2vw;
+            font-size: 1.45vw;
+            min-width: 4.8vw;
+            white-space: nowrap;
+        }
+
+        #slide2 .prayer-time-text {
+            font-size: 1.12vw;
+            white-space: nowrap;
         }
 
         #slide2 .prayer-bullet-icon {
-            font-size: 1.0vw;
+            font-size: 0.95vw;
         }
 
         /* ── Slide 3: Kollel Announcement Poster ───────────────────────── */
