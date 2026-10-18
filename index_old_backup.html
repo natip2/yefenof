@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>לוח מודעות — בית הכנסת הספרדי הגדול ״יפה נוף״</title>
+
+    <!--
+        Google Font: Frank Ruhl Libre — a classic Hebrew serif typeface
+        designed for formal Hebrew typography (books, Torah scrolls).
+        Cached by the browser after first load — offline capable.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@300;400;500;700;900&display=swap"
+          rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css">
+
+    <!--
+        kosher-zmanim UMD browser bundle.
+        Exposes a global `KosherZmanim` object.
+        Cached after first load — Zmanim calculations work fully offline.
+    -->
+    <script src="https://cdn.jsdelivr.net/npm/kosher-zmanim/dist/kosher-zmanim.umd.js"></script>
+</head>
+<body>
+
+    <!-- ═══════════════════════════════════════════════════════
+         MAIN CONTENT GRID
+         RTL layout: CSS Grid col 1 (30%) → RIGHT sidebar
+                     CSS Grid col 2 (70%) → LEFT  main pane
+    ═══════════════════════════════════════════════════════ -->
+    <div class="container">
+
+        <!-- ─────────────────────────────────────────────────
+             RIGHT SIDEBAR PANE  (30%)
+             Synagogue name · clock · dates · Zmanim
+        ───────────────────────────────────────────────── -->
+        <aside class="sidebar-pane">
+
+            <header class="synagogue-header">
+                <h1 id="synagogueName">
+                    בית הכנסת הספרדי הגדול<br>
+                    ״יפה נוף״<br>
+                    עיה״ק ירושלים תובב״א
+                </h1>
+            </header>
+
+            <div class="clock-section">
+                <div class="digital-clock" id="digitalClock">00:00</div>
+            </div>
+
+            <div class="dates-section">
+                <div class="hebrew-date"  id="hebrewDate">טוען…</div>
+                <div class="secular-date" id="secularDate">טוען…</div>
+            </div>
+
+            <section class="zmanim-section">
+                <h2 class="zmanim-title">✦ זמני היום ✦</h2>
+                <div class="zmanim-list">
+                    <div class="zman-item">
+                        <span class="zman-name">עלות השחר</span>
+                        <span class="zman-time" id="zmAlos">--:--</span>
+                    </div>
+                    <div class="zman-item">
+                        <span class="zman-name">הנץ החמה</span>
+                        <span class="zman-time" id="zmNetz">--:--</span>
+                    </div>
+                    <div class="zman-item">
+                        <span class="zman-name">סוף זמן ק"ש</span>
+                        <span class="zman-time" id="zmSofZman">--:--</span>
+                    </div>
+                    <div class="zman-item">
+                        <span class="zman-name">חצות היום</span>
+                        <span class="zman-time" id="zmChatzot">--:--</span>
+                    </div>
+                    <div class="zman-item">
+                        <span class="zman-name">שקיעה</span>
+                        <span class="zman-time" id="zmShkia">--:--</span>
+                    </div>
+                    <div class="zman-item">
+                        <span class="zman-name">צאת הכוכבים</span>
+                        <span class="zman-time" id="zmTzet">--:--</span>
+                    </div>
+                </div>
+            </section>
+
+        </aside>
+
+        <!-- ─────────────────────────────────────────────────
+             LEFT MAIN PANE  (70%)
+             Static header · rotating messages · Gabbai footer
+        ───────────────────────────────────────────────── -->
+        <main class="main-pane">
+
+            <header class="main-header">
+                <h1 id="mainTitle">כולל לבעלי בתים</h1>
+                <p  id="mainSubtitle">טוב לי תורת פיך מאלפי זהב וכסף</p>
+            </header>
+
+            <div class="message-area">
+                <div class="message-card" id="messageCard">
+                    <h2 class="message-title"   id="messageTitle">טוען…</h2>
+                    <div class="message-content" id="messageContent"></div>
+                    <!-- Gold countdown bar — depletes over 30 seconds -->
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+            </div>
+
+            <footer class="footer-info">
+                <span>לשאלות ופניות: גבאי הבית — </span>
+                <span id="gabaiContact">אפרים די זהב ✆ 052-655-4339</span>
+            </footer>
+
+        </main>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         BOTTOM SCROLLING TICKER  (full width)
+    ═══════════════════════════════════════════════════════ -->
+    <div class="marquee-section" role="region" aria-label="הודעות גוללות">
+        <div class="marquee-wrapper">
+            <div class="marquee-content" id="marqueeContent">● טוען הודעות…</div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

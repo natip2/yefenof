@@ -1,0 +1,405 @@
+/* ═══════════════════════════════════════════════════════════════
+   SYNAGOGUE DISPLAY BOARD — style.css
+   Background: background.jpeg only — NO overlay panels.
+   Text sits directly on the image with text-shadows for contrast.
+═══════════════════════════════════════════════════════════════ */
+
+/* ── Reset ──────────────────────────────────────────────────── */
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+body {
+    font-family: 'Frank Ruhl Libre', 'Times New Roman', serif;
+    direction: rtl;
+    color: #f5e6d3;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    position: relative;
+}
+
+/*
+ * Background image — mirrored so the dark-blue/clock area sits on
+ * the RIGHT (matching the RTL sidebar) and the parchment arch on the LEFT.
+ * No dark overlay — the image shows through completely.
+ */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url('background.jpeg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    transform: scaleX(-1);
+    z-index: -1;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MAIN GRID — RTL: col 1 (30%) = RIGHT sidebar
+                    col 2 (70%) = LEFT  main
+══════════════════════════════════════════════════════════════ */
+.container {
+    display: grid;
+    grid-template-columns: 30% 70%;
+    flex: 1;
+    min-height: 0;
+    /* NO background — image shows through */
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RIGHT SIDEBAR  (30%) — sits over the dark-blue area
+   Gold text reads well on dark blue. No fill, only gold borders.
+══════════════════════════════════════════════════════════════ */
+.sidebar-pane {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 18px 16px;
+    /* NO background */
+    border-left: 2px solid #c9a84c;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #c9a84c transparent;
+}
+.sidebar-pane::-webkit-scrollbar       { width: 4px; }
+.sidebar-pane::-webkit-scrollbar-thumb { background: #c9a84c; border-radius: 2px; }
+
+/* ── Synagogue Name ─────────────────────────────────────────── */
+.synagogue-header {
+    text-align: center;
+    padding: 10px 8px;
+    border: 1px solid rgba(201, 168, 76, 0.7);
+    border-radius: 8px;
+    /* NO background fill */
+}
+
+.synagogue-header h1 {
+    font-size: 15px;
+    color: #f0dc90;
+    font-weight: 700;
+    line-height: 1.65;
+    /* Strong shadow for legibility on any part of the image */
+    text-shadow:
+        0 1px 3px rgba(0,0,0,0.9),
+        0 0 8px rgba(0,0,0,0.7);
+}
+
+/* ── Digital Clock ──────────────────────────────────────────── */
+.clock-section {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 16px 8px;
+    border: 1.5px solid rgba(201, 168, 76, 0.75);
+    border-radius: 10px;
+    /* NO background */
+}
+
+.digital-clock {
+    font-size: 68px;
+    font-weight: 900;
+    color: #f0dc90;
+    font-family: 'Courier New', 'Lucida Console', monospace;
+    letter-spacing: 4px;
+    text-shadow:
+        0 0 25px rgba(201, 168, 76, 0.9),
+        0 0 50px rgba(201, 168, 76, 0.4),
+        0 2px 8px rgba(0,0,0,1);
+}
+
+/* ── Dates ──────────────────────────────────────────────────── */
+.dates-section {
+    text-align: center;
+    padding: 10px;
+    border: 1px solid rgba(201, 168, 76, 0.5);
+    border-radius: 8px;
+    /* NO background */
+}
+
+.hebrew-date {
+    font-size: 18px;
+    color: #f0dc90;
+    font-weight: 700;
+    margin-bottom: 4px;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.6);
+}
+
+.secular-date {
+    font-size: 13px;
+    color: #ddd0a0;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+}
+
+/* ── Zmanim ─────────────────────────────────────────────────── */
+.zmanim-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 12px 10px;
+    border: 1.5px solid rgba(201, 168, 76, 0.65);
+    border-radius: 10px;
+    min-height: 0;
+    overflow: hidden;
+    /* NO background */
+}
+
+.zmanim-title {
+    font-size: 15px;
+    color: #f0dc90;
+    text-align: center;
+    font-weight: 700;
+    letter-spacing: 3px;
+    padding-bottom: 7px;
+    border-bottom: 1px solid rgba(201, 168, 76, 0.45);
+    margin-bottom: 2px;
+    flex-shrink: 0;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+}
+
+.zmanim-list {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    overflow-y: auto;
+    flex: 1;
+    scrollbar-width: none;
+}
+.zmanim-list::-webkit-scrollbar { display: none; }
+
+/*
+ * Zman items — transparent fill, gold border pill.
+ * Text is gold/white with heavy shadow: readable on the dark-blue bg.
+ */
+.zman-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 14px;
+    /* NO background fill */
+    border: 1.5px solid rgba(201, 168, 76, 0.6);
+    border-radius: 25px;
+}
+
+.zman-name {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #f5e8bc;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.8);
+}
+
+.zman-time {
+    font-size: 15px;
+    font-weight: 700;
+    color: #f5e8bc;
+    font-family: 'Courier New', monospace;
+    direction: ltr;
+    min-width: 46px;
+    text-align: center;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.95);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LEFT MAIN PANE  (70%) — sits over the parchment arch area
+   Dark navy text is naturally readable on the light parchment.
+══════════════════════════════════════════════════════════════ */
+.main-pane {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px 28px;
+    /* NO background */
+}
+
+/* ── Main Header ────────────────────────────────────────────── */
+.main-header {
+    text-align: center;
+    padding: 14px 16px;
+    border: 1px solid rgba(201, 168, 76, 0.6);
+    border-radius: 10px;
+    /* NO background */
+}
+
+/* Dark navy reads on parchment; text-shadow lifts it off any edge */
+.main-header h1 {
+    font-size: 36px;
+    color: #0d2452;
+    font-weight: 900;
+    letter-spacing: 3px;
+    margin-bottom: 6px;
+    text-shadow: 0 1px 2px rgba(255,248,200,0.8);
+}
+
+.main-header p {
+    font-size: 16px;
+    color: #1a3060;
+    font-style: italic;
+    letter-spacing: 1.5px;
+    text-shadow: 0 1px 2px rgba(255,248,200,0.6);
+}
+
+/* ── Message Card ───────────────────────────────────────────── */
+.message-area {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 0;
+}
+
+.message-card {
+    width: 86%;
+    padding: 38px 48px;
+    /* NO background — text directly on parchment image */
+    border: 2px solid rgba(201, 168, 76, 0.75);
+    border-radius: 18px;
+    text-align: center;
+    overflow: hidden;
+    transition: opacity 0.5s ease-in-out;
+}
+
+.message-card.fade-out {
+    opacity: 0;
+}
+
+.message-title {
+    font-size: 34px;
+    color: #0d2452;
+    font-weight: 900;
+    letter-spacing: 2px;
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 2px solid rgba(201, 168, 76, 0.6);
+    text-shadow: 0 1px 2px rgba(255,248,200,0.5);
+}
+
+.message-content {
+    font-size: 24px;
+    color: #1a1a2e;
+    line-height: 1.9;
+    font-weight: 500;
+}
+
+.message-content p {
+    margin: 5px 0;
+    text-shadow: 0 1px 2px rgba(255,255,255,0.4);
+}
+
+/* ── Progress Bar ───────────────────────────────────────────── */
+.progress-bar {
+    height: 4px;
+    background: linear-gradient(to left, #c9a84c, #f0d070);
+    border-radius: 2px;
+    margin-top: 22px;
+    transform-origin: left center;
+    animation: progress-deplete 30s linear forwards;
+}
+
+@keyframes progress-deplete {
+    from { transform: scaleX(1); }
+    to   { transform: scaleX(0); }
+}
+
+/* ── Footer ─────────────────────────────────────────────────── */
+.footer-info {
+    text-align: center;
+    padding: 11px 16px;
+    border: 1px solid rgba(201, 168, 76, 0.5);
+    border-radius: 8px;
+    font-size: 14px;
+    color: #0d2452;
+    text-shadow: 0 1px 2px rgba(255,255,255,0.5);
+    /* NO background */
+}
+
+#gabaiContact {
+    color: #0d2452;
+    font-weight: 700;
+    direction: ltr;
+    display: inline-block;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   BOTTOM TICKER — thin dark strip so white text is always readable
+══════════════════════════════════════════════════════════════ */
+.marquee-section {
+    height: 50px;
+    /* Keep a subtle dark strip only for the ticker — it's full-width */
+    background: rgba(4, 10, 28, 0.75);
+    border-top: 2px solid #c9a84c;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.marquee-wrapper {
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    direction: ltr;
+}
+
+.marquee-content {
+    display: inline-block;
+    white-space: nowrap;
+    direction: rtl;
+    font-size: 17px;
+    color: #f0e0b8;
+    font-weight: 400;
+    letter-spacing: 1.5px;
+    animation: ticker-rtl 55s linear infinite;
+}
+
+@keyframes ticker-rtl {
+    from { transform: translateX(110vw); }
+    to   { transform: translateX(-100%); }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════════════════════════════ */
+@media screen and (min-width: 1920px) {
+    .digital-clock    { font-size: 80px; }
+    .main-header h1   { font-size: 44px; }
+    .message-title    { font-size: 40px; }
+    .message-content  { font-size: 28px; }
+    .zman-name        { font-size: 15px; }
+    .zman-time        { font-size: 17px; }
+    .synagogue-header h1 { font-size: 17px; }
+    .hebrew-date      { font-size: 20px; }
+}
+
+@media screen and (max-width: 1280px) {
+    .digital-clock    { font-size: 54px; }
+    .main-header h1   { font-size: 28px; }
+    .message-title    { font-size: 26px; }
+    .message-content  { font-size: 20px; }
+    .message-card     { padding: 28px 36px; }
+    .zman-name        { font-size: 12px; }
+    .zman-time        { font-size: 13px; }
+}
+
+@media screen and (max-width: 768px) {
+    .container {
+        grid-template-columns: 1fr;
+    }
+    .sidebar-pane {
+        border-left: none;
+        border-bottom: 2px solid #c9a84c;
+    }
+    .digital-clock { font-size: 48px; }
+    body::before   { transform: none; }
+}

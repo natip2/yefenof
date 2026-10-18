@@ -1,0 +1,1745 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מערכת ניהול לוח בית הכנסת — יפה נוף</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700;800;900&family=Frank+Ruhl+Libre:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <!-- Base Configuration & Scripts -->
+    <script src="prayers_config.js"></script>
+
+    <!-- Firebase SDKs (Optional / Realtime Sync) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #1a365d;
+            --primary-dark: #0f2038;
+            --primary-light: #2b5288;
+            --gold: #d4af37;
+            --gold-light: #f5e7a9;
+            --gold-dark: #997a15;
+            --bg-body: #f0f4f8;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Assistant', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            direction: rtl;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Top Header Bar ────────────────────────────────────────── */
+        header.top-bar {
+            background: linear-gradient(135deg, #091726 0%, #152e4d 100%);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border-bottom: 2px solid var(--gold);
+        }
+
+        .header-title-wrap {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .header-logo {
+            font-size: 2.2rem;
+        }
+
+        .header-title h1 {
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: var(--gold-light);
+            letter-spacing: 0.5px;
+        }
+
+        .header-title p {
+            font-size: 0.95rem;
+            color: #cbd5e1;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.4rem 0.8rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.1);
+            color: #e2e8f0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .status-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background-color: var(--warning);
+        }
+
+        .status-dot.online { background-color: var(--success); box-shadow: 0 0 8px var(--success); }
+        .status-dot.offline { background-color: #94a3b8; }
+        .status-dot.error { background-color: var(--danger); }
+
+        /* ── Navigation Tabs ───────────────────────────────────────── */
+        nav.nav-tabs {
+            background: white;
+            border-bottom: 1px solid var(--border);
+            padding: 0 2rem;
+            display: flex;
+            gap: 0.5rem;
+            overflow-x: auto;
+        }
+
+        .nav-tab {
+            padding: 1rem 1.4rem;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            border: none;
+            background: none;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .nav-tab:hover {
+            color: var(--primary);
+            background: #f8fafc;
+        }
+
+        .nav-tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--gold);
+            background: #f1f5f9;
+        }
+
+        .tab-badge {
+            background: #e2e8f0;
+            color: var(--text-main);
+            font-size: 0.75rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 9999px;
+            font-weight: 800;
+        }
+
+        .nav-tab.active .tab-badge {
+            background: var(--gold);
+            color: #1e293b;
+        }
+
+        /* ── Main Container ────────────────────────────────────────── */
+        main.main-content {
+            flex: 1;
+            padding: 2rem;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+            animation: fadeIn 0.25s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Card Styling ──────────────────────────────────── */
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .card-header h2 {
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 1.35rem;
+            color: var(--primary-dark);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* ── Buttons ───────────────────────────────────────── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            padding: 0.55rem 1.1rem;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            transition: all 0.15s ease-in-out;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        .btn-primary:hover { background: var(--primary-dark); }
+
+        .btn-gold {
+            background: linear-gradient(135deg, #d4af37, #b8860b);
+            color: #000;
+            box-shadow: 0 2px 6px rgba(212, 175, 55, 0.3);
+        }
+        .btn-gold:hover { background: linear-gradient(135deg, #ebd078, #d4af37); }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: var(--text-main);
+        }
+        .btn-secondary:hover { background: #cbd5e1; }
+
+        .btn-danger {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        .btn-danger:hover { background: #fecaca; }
+
+        .btn-sm {
+            padding: 0.35rem 0.65rem;
+            font-size: 0.85rem;
+        }
+
+        /* ── Form Controls ─────────────────────────────────── */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .form-group label {
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--text-main);
+        }
+
+        .form-control {
+            padding: 0.6rem 0.85rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border 0.15s;
+            background: #fff;
+        }
+
+        .form-control:focus {
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
+        }
+
+        /* ── Tables ────────────────────────────────────────── */
+        .table-responsive {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        table.data-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: right;
+        }
+
+        table.data-table th {
+            background: #f8fafc;
+            color: var(--primary-dark);
+            font-weight: 800;
+            padding: 0.75rem 1rem;
+            border-bottom: 2px solid var(--border);
+            font-size: 0.9rem;
+        }
+
+        table.data-table td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.95rem;
+        }
+
+        table.data-table tr:hover {
+            background-color: #f1f5f9;
+        }
+
+        .memorial-current-week-tag {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        /* ── Search & Filter Bar ───────────────────────────── */
+        .toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.6rem 2.2rem 0.6rem 0.85rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 0.95rem;
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+
+        /* ── Pagination ────────────────────────────────────── */
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .pagination-buttons {
+            display: flex;
+            gap: 0.35rem;
+        }
+
+        /* ── Toast Notifications ───────────────────────────── */
+        #toastContainer {
+            position: fixed;
+            bottom: 2rem;
+            left: 2rem;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .toast {
+            background: #1e293b;
+            color: white;
+            padding: 0.8rem 1.4rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            animation: slideUp 0.25s ease-out;
+        }
+
+        .toast.success { border-right: 4px solid var(--success); }
+        .toast.error { border-right: 4px solid var(--danger); }
+        .toast.info { border-right: 4px solid var(--gold); }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .time-input-highlight {
+            font-size: 1.15rem !important;
+            font-weight: 800 !important;
+            color: var(--primary-dark) !important;
+            background: #fffbeb !important;
+            border: 2px solid #f59e0b !important;
+            text-align: center;
+            direction: ltr;
+        }
+
+        .time-input-highlight:focus {
+            background: #ffffff !important;
+            border-color: var(--primary) !important;
+            box-shadow: 0 0 0 3px rgba(26, 54, 93, 0.2) !important;
+        }
+
+        .gabbai-save-bar {
+            position: sticky;
+            bottom: 1rem;
+            z-index: 100;
+            background: linear-gradient(135deg, #0f2038 0%, #1a365d 100%);
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            border: 2px solid var(--gold);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+            color: white;
+            margin-top: 1rem;
+        }
+
+        .btn-save-huge {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            font-size: 1.2rem;
+            font-weight: 800;
+            padding: 0.85rem 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .btn-save-huge:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.55);
+        }
+
+        @media (max-width: 768px) {
+            header.top-bar {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.8rem;
+                padding: 1rem;
+            }
+            .header-actions {
+                width: 100%;
+                justify-content: space-between;
+                flex-wrap: wrap;
+            }
+            nav.nav-tabs {
+                padding: 0 0.5rem;
+            }
+            .nav-tab {
+                padding: 0.8rem 0.9rem;
+                font-size: 0.95rem;
+            }
+            main.main-content {
+                padding: 1rem 0.75rem;
+            }
+            .card {
+                padding: 1rem;
+            }
+            .gabbai-save-bar {
+                flex-direction: column;
+                text-align: center;
+            }
+            .btn-save-huge {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         TOP HEADER
+    ══════════════════════════════════════════════════════════════ -->
+    <header class="top-bar">
+        <div class="header-title-wrap">
+            <div class="header-logo">🏛️</div>
+            <div class="header-title">
+                <h1>ניהול לוח בית הכנסת — ״יפה נוף״</h1>
+                <p>מערכת פשוטה לגבאי לעדכון זמני שבת, תפילות חול, מודעות ונפטרים</p>
+            </div>
+        </div>
+
+        <div class="header-actions">
+            <div class="status-badge" id="cloudStatusBadge" title="סטטוס חיבור לענן">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">בדיקת חיבור...</span>
+            </div>
+            
+            <a href="index.html#2" target="_blank" class="btn btn-gold btn-sm">
+                🖥️ צפה בלוח שבת
+            </a>
+
+            <button class="btn btn-primary btn-sm" id="btnSyncCloud" onclick="syncAllToCloud()">
+                💾 שמור ועדכן הכל בלוח
+            </button>
+        </div>
+    </header>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         NAVIGATION TABS
+    ══════════════════════════════════════════════════════════════ -->
+    <nav class="nav-tabs">
+        <button class="nav-tab active" onclick="switchTab('shabbat')">
+            ✨ זמני שבת וימות החול (עדכון שבועי לגבאי)
+        </button>
+        <button class="nav-tab" onclick="switchTab('slides')">
+            📢 שקופיות ומודעת אבל
+        </button>
+        <button class="nav-tab" onclick="switchTab('memorial')">
+            🕯️ נפטרים ואזכרות
+            <span class="tab-badge" id="memorialCountBadge">0</span>
+        </button>
+        <button class="nav-tab" onclick="switchTab('firebase')">
+            ⚙️ הגדרות ענן
+        </button>
+    </nav>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         MAIN CONTENT AREA
+    ══════════════════════════════════════════════════════════════ -->
+    <main class="main-content">
+
+        <!-- ──────────────────────────────────────────────────────────
+             TAB 1: MEMORIAL (נפטרים ואזכרות)
+        ────────────────────────────────────────────────────────── -->
+        <div id="tab-memorial" class="tab-panel">
+            
+            <!-- Add Deceased Form -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 id="memorialFormTitle">🕯️ הוספת נפטר / נפטרת ללוח</h2>
+                    <button class="btn btn-secondary btn-sm" id="btnCancelEdit" style="display:none;" onclick="cancelEditMemorial()">
+                        ביטול עריכה
+                    </button>
+                </div>
+                <form id="memorialForm" onsubmit="saveMemorial(event)">
+                    <input type="hidden" id="editMemorialId" value="">
+                    
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="memName">שם הנפטר/ת *</label>
+                            <input type="text" id="memName" class="form-control" placeholder="למשל: יוסף כהן, חכם אברהם זצ״ל" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="memGender">מין (בן / בת) *</label>
+                            <select id="memGender" class="form-control" required>
+                                <option value="m">זכר (בן)</option>
+                                <option value="f">נקבה (בת)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="memParent">שם האב / האם</label>
+                            <input type="text" id="memParent" class="form-control" placeholder="למשל: רחל, יצחק ושרה ז״ל">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="memHebrewDay">יום פטירה עברי *</label>
+                            <select id="memHebrewDay" class="form-control" required>
+                                <!-- Populated dynamically 1..30 -->
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="memHebrewMonth">חודש פטירה עברי *</label>
+                            <select id="memHebrewMonth" class="form-control" required>
+                                <option value="1">ניסן</option>
+                                <option value="2">אייר</option>
+                                <option value="3">סיוון</option>
+                                <option value="4">תמוז</option>
+                                <option value="5">אב</option>
+                                <option value="6">אלול</option>
+                                <option value="7">תשרי</option>
+                                <option value="8">חשוון</option>
+                                <option value="9">כסלו</option>
+                                <option value="10">טבת</option>
+                                <option value="11">שבט</option>
+                                <option value="12">אדר (א׳)</option>
+                                <option value="13">אדר ב׳</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="memHebrewYear">שנת פטירה עברית (אופציונלי)</label>
+                            <input type="text" id="memHebrewYear" class="form-control" placeholder="למשל: תשפ״ג, תשנ״ה">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="memDonor">תורם / הקדשה</label>
+                            <input type="text" id="memDonor" class="form-control" placeholder="למשל: משפחת כהן">
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                        <button type="submit" class="btn btn-primary" id="btnSubmitMemorial">
+                            💾 שמור נפטר במאגר
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Memorial List Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>📋 מאגר הנפטרים והאזכרות</h2>
+                    <div style="display:flex; gap:0.5rem;">
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Toolbar / Search -->
+                <div class="toolbar">
+                    <div class="search-box">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" id="memSearchInput" placeholder="חיפוש לפי שם, שם הורים, חודש..." oninput="filterMemorials()">
+                    </div>
+
+                    <div style="display:flex; gap:0.5rem; align-items:center;">
+                        <select id="memMonthFilter" class="form-control" onchange="filterMemorials()">
+                            <option value="all">כל החודשים</option>
+                            <option value="current_week">🕯️ אזכרות השבוע הנוכחי בלבד</option>
+                            <option value="1">ניסן</option>
+                            <option value="2">אייר</option>
+                            <option value="3">סיוון</option>
+                            <option value="4">תמוז</option>
+                            <option value="5">אב</option>
+                            <option value="6">אלול</option>
+                            <option value="7">תשרי</option>
+                            <option value="8">חשוון</option>
+                            <option value="9">כסלו</option>
+                            <option value="10">טבת</option>
+                            <option value="11">שבט</option>
+                            <option value="12">אדר (א׳)</option>
+                            <option value="13">אדר ב׳</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Memorial Table -->
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>שם הנפטר/ת</th>
+                                <th>קרבה והורים</th>
+                                <th>תאריך פטירה עברי</th>
+                                <th>שנה</th>
+                                <th>סטטוס השבוע</th>
+                                <th>פעולות</th>
+                            </tr>
+                        </thead>
+                        <tbody id="memorialTableBody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="pagination">
+                    <div id="paginationInfo">מציג 0 מתוך 0 נפטרים</div>
+                    <div class="pagination-buttons" id="paginationControls"></div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ──────────────────────────────────────────────────────────
+             MAIN GABBAI TAB: SHABBAT & WEEKDAY PRAYERS (שבת וימות החול יחד)
+        ────────────────────────────────────────────────────────── -->
+        <div id="tab-shabbat" class="tab-panel active">
+            <div style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; color: #166534; font-weight: 600; font-size: 1.05rem;">
+                👋 <strong>שלום לגבאי!</strong> בדף זה מרוכזים גם <strong>זמני השבת</strong> וגם <strong>זמני התפילות לימות החול (השבוע הקרוב)</strong>. שנה את השעות בתיבות הצהובות ולחץ על הכפתור הירוק למטה — הלוח בבית הכנסת יתעדכן מיד!
+            </div>
+
+            <!-- Card 1: Shabbat Prayers -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>✨ 1. זמני תפילות שבת קודש (שקופית 2)</h2>
+                    <button class="btn btn-primary btn-sm" onclick="addShabbatPrayerRow()">
+                        ➕ הוסף שורה לשבת
+                    </button>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="shabbatTitleInput">כותרת עליונה בשקופית</label>
+                        <input type="text" id="shabbatTitleInput" class="form-control" value="לוח זמנים לשבת">
+                    </div>
+                    <div class="form-group">
+                        <label for="shabbatParashaInput">פרשת השבוע (רשום <code>auto</code> לחישוב אוטומטי, או שם פרשה כגון <code>פרשת נח</code>)</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="text" id="shabbatParashaInput" class="form-control" value="auto" placeholder='רשום "auto" לחישוב אוטומטי או שם פרשה'>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('shabbatParashaInput').value='auto'" title="חישוב פרשה אוטומטי">אוטומטי</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-responsive" style="margin-top:0.75rem;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">שם התפילה / השיעור</th>
+                                <th style="width: 40%;">תיאור / פרטים</th>
+                                <th style="width: 20%;">שעה (מודגש)</th>
+                                <th style="width: 15%;">סדר / מחיקה</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shabbatPrayersTableBody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Card 2: Weekday Prayers -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>⏰ 2. זמני תפילות לימות החול — השבוע הקרוב (שקופית 1)</h2>
+                    <button class="btn btn-primary btn-sm" onclick="addWeekdayPrayerRow()">
+                        ➕ הוסף שורה לימות החול
+                    </button>
+                </div>
+                
+                <p style="font-size:0.95rem; color:var(--text-muted); margin-bottom:0.85rem;">
+                    💡 עדכן כאן את זמני שחרית, מנחה וערבית לימות השבוע הקרוב.
+                </p>
+
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">שם התפילה / השיעור</th>
+                                <th style="width: 40%;">תיאור / פירוט</th>
+                                <th style="width: 20%;">שעה (מודגש)</th>
+                                <th style="width: 15%;">סדר / מחיקה</th>
+                            </tr>
+                        </thead>
+                        <tbody id="weekdayPrayersTableBody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Unified Sticky Save Bar for Both Shabbat and Weekday -->
+            <div class="gabbai-save-bar">
+                <div>
+                    <strong style="font-size: 1.15rem; color: var(--gold-light);">סיימת לעדכן את זמני השבת והשבוע הקרוב?</strong>
+                    <div style="font-size: 0.95rem; color: #cbd5e1;">לחיצה אחת תשמור ותעדכן מיד את זמני השבת וימות החול במסך בית הכנסת</div>
+                </div>
+                <button class="btn-save-huge" onclick="saveShabbatPrayers()">
+                    💾 שמור ועדכן זמני שבת והשבוע בלוח
+                </button>
+            </div>
+        </div>
+
+        <!-- ──────────────────────────────────────────────────────────
+             TAB 4: SLIDES & NOTICES (שקופיות והודעות)
+        ────────────────────────────────────────────────────────── -->
+        <div id="tab-slides" class="tab-panel">
+            <div class="card">
+                <div class="card-header">
+                    <h2>📢 הגדרות שקופיות ותצוגה</h2>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="slideDurationInput">משך תצוגת שקופית (שניות)</label>
+                        <input type="number" id="slideDurationInput" class="form-control" min="5" max="120" value="30">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="initialSlideSelect">שקופית פתיחה בעת הפעלה</label>
+                        <select id="initialSlideSelect" class="form-control">
+                            <option value="1">שקופית 1 — זמני חול</option>
+                            <option value="2">שקופית 2 — זמני שבת</option>
+                            <option value="3">שקופית 3 — כולל ערב</option>
+                            <option value="4">שקופית 4 — אזכרות ונפטרים</option>
+                            <option value="8">שקופית 8 — מודעת אבל והשתתפות בצער</option>
+                            <option value="5">שקופית 5 — תרומות והוראות קבע</option>
+                            <option value="6">שקופית 6 — שבת שובה (פרשת האזינו ודרשה)</option>
+                            <option value="7">שקופית 7 — זמני תפילות יום הכיפורים</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="margin-top: 1rem; display: flex; justify-content: flex-end;">
+                    <button class="btn btn-gold" onclick="saveSlideSettings()">
+                        💾 שמור הגדרות שקופיות
+                    </button>
+                </div>
+            </div>
+
+            <!-- Condolence Notice Card (Slide 8) -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>🕯️ מודעת אבל והשתתפות בצער (שקופית 8)</h2>
+                </div>
+                
+                <div style="margin-bottom: 1.2rem; display: flex; align-items: center; gap: 0.8rem; background: var(--bg-hover); padding: 0.8rem 1rem; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <input type="checkbox" id="condolenceEnabledInput" style="width: 1.3rem; height: 1.3rem; accent-color: var(--accent-gold); cursor: pointer;">
+                    <label for="condolenceEnabledInput" style="font-weight: 700; cursor: pointer; margin: 0; font-size: 1.05rem;">
+                        הפעל והצג שקופית מודעת אבל ברוטציית המסכים
+                    </label>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="condolenceDurationInput">משך תצוגה (שניות)</label>
+                        <input type="number" id="condolenceDurationInput" class="form-control" min="3" max="60" value="10">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="condolenceTitleInput">כותרת עליונה</label>
+                        <input type="text" id="condolenceTitleInput" class="form-control" value="ברוך דיין האמת">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="condolenceSubtitleInput">תת כותרת</label>
+                        <input type="text" id="condolenceSubtitleInput" class="form-control" value="הודעת אבל והשתתפות בצער">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="condolenceDeceasedInput">שם הנפטר/ת (מודגש)</label>
+                        <input type="text" id="condolenceDeceasedInput" class="form-control" placeholder='לדוגמה: שלמה ״מוצי״ הוד ז״ל' value="">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="condolenceRelationInput">תיאור / קרבה</label>
+                        <input type="text" id="condolenceRelationInput" class="form-control" placeholder='לדוגמה: אבינו וסבנו היקר' value="">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="condolenceIntroInput">טקסט פתיח והשתתפות</label>
+                        <input type="text" id="condolenceIntroInput" class="form-control" value="קהילת בית הכנסת משתתפת בצערה העמוק של המשפחה על פטירתו של">
+                    </div>
+
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label for="condolenceFuneralInput">פרטי ההלוויה (תאריך, שעה ובית עלמין)</label>
+                        <input type="text" id="condolenceFuneralInput" class="form-control" placeholder='לדוגמה: יום שישי ה-9.10.26, כ״ח תשרי תשפ״ז, בשעה 13:15 בבית העלמין גבעת שאול, בית הלוויות הספרדי, ירושלים'>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="condolenceShivaLocationInput">מיקום ישיבת שבעה</label>
+                        <input type="text" id="condolenceShivaLocationInput" class="form-control" placeholder='לדוגמה: בבית המשפחה, רח׳ נוף הרים 15, ירושלים'>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="condolenceShivaHoursInput">שעות ניחום (אופציונלי)</label>
+                        <input type="text" id="condolenceShivaHoursInput" class="form-control" placeholder='לדוגמה: 10:00-14:00, 17:00-21:00'>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="condolenceMournersInput">חתימת האבלים</label>
+                        <input type="text" id="condolenceMournersInput" class="form-control" value="המשפחה האבלה">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="condolenceBlessingInput">נוסח ברכת ניחום</label>
+                        <input type="text" id="condolenceBlessingInput" class="form-control" value="״המקום ינחם אתכם בתוך שאר אבלי ציון וירושלים ולא תוסיפו לדאבה עוד״">
+                    </div>
+                </div>
+
+                <div style="margin-top: 1.2rem; display: flex; justify-content: flex-end;">
+                    <button class="btn btn-gold" onclick="saveCondolenceSettings()">
+                        💾 שמור מודעת אבל
+                    </button>
+                </div>
+            </div>
+
+            <!-- Export / Backup Config File -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>💾 גיבוי והורדת קובץ קונפיגורציה</h2>
+                </div>
+                <p style="font-size:0.95rem; color:var(--text-muted); margin-bottom:1rem;">
+                    ניתן להוריד את קובץ ה-<code>prayers_config.js</code> המעודכן עם כל השינויים (תפילות + כל הנפטרים) ולהחליפו בתיקיית הפרויקט.
+                </p>
+                <button class="btn btn-secondary" onclick="exportFullPrayersConfigFile()">
+                    📥 הורד קובץ prayers_config.js מעודכן
+                </button>
+            </div>
+        </div>
+
+        <!-- ──────────────────────────────────────────────────────────
+             TAB 5: FIREBASE CLOUD SYNC (הגדרות ענן)
+        ────────────────────────────────────────────────────────── -->
+        <div id="tab-firebase" class="tab-panel">
+            <div class="card">
+                <div class="card-header">
+                    <h2>☁️ הגדרות חיבור ל-Firebase Cloud Firestore</h2>
+                </div>
+                <p style="font-size:0.95rem; color:var(--text-muted); margin-bottom:1rem;">
+                    חיבור ל-Firebase מאפשר לעדכן את לוח בית הכנסת בזמן אמת מכל מחשב או סמארטפון!
+                </p>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="fbApiKey">apiKey</label>
+                        <input type="text" id="fbApiKey" class="form-control" placeholder="AIzaSy...">
+                    </div>
+                    <div class="form-group">
+                        <label for="fbAuthDomain">authDomain</label>
+                        <input type="text" id="fbAuthDomain" class="form-control" placeholder="synagogue-board.firebaseapp.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="fbProjectId">projectId</label>
+                        <input type="text" id="fbProjectId" class="form-control" placeholder="synagogue-board">
+                    </div>
+                    <div class="form-group">
+                        <label for="fbStorageBucket">storageBucket</label>
+                        <input type="text" id="fbStorageBucket" class="form-control" placeholder="synagogue-board.appspot.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="fbMessagingSenderId">messagingSenderId</label>
+                        <input type="text" id="fbMessagingSenderId" class="form-control" placeholder="1234567890">
+                    </div>
+                    <div class="form-group">
+                        <label for="fbAppId">appId</label>
+                        <input type="text" id="fbAppId" class="form-control" placeholder="1:1234567890:web:abcdef">
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:0.75rem; justify-content:flex-end; margin-top:1rem;">
+                    <button class="btn btn-secondary" onclick="testFirebaseConnection()">
+                        🔍 בדוק חיבור
+                    </button>
+                    <button class="btn btn-gold" onclick="saveFirebaseSettings()">
+                        💾 שמור הגדרות ענן
+                    </button>
+                    <button class="btn btn-primary" onclick="uploadInitialDataToFirestore()">
+                        🚀 העלה את כל הנתונים לענן (Upload All)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Firebase Setup Guide -->
+            <div class="card" style="background:#f8fafc;">
+                <div class="card-header">
+                    <h2>📖 מדריך מהיר להגדרת פרויקט Firebase בחינם (2 דקות)</h2>
+                </div>
+                <ol style="padding-right: 1.5rem; line-height: 1.8; color: var(--text-main); font-size: 0.95rem;">
+                    <li>היכנס לאתר <a href="https://console.firebase.google.com/" target="_blank" style="color:var(--primary); font-weight:700;">Firebase Console</a> עם חשבון גוגל ולחץ על <strong>"Add Project"</strong>.</li>
+                    <li>תן שם לפרויקט (למשל: <code>synagogue-display</code>) ולחץ המשך.</li>
+                    <li>בתפריט השמאלי, לחץ על <strong>Build -> Firestore Database</strong> ולחץ על <strong>Create Database</strong> (בחר מיקום <code>eur3</code> או <code>nam5</code> ומצב <strong>Start in test mode</strong>).</li>
+                    <li>בעמוד הראשי של הפרויקט, לחץ על סמל ה-Web <code>&lt;/&gt;</code> כדי לרשום אפליקציה, והעתק את אובייקט ה-<code>firebaseConfig</code> לשדות למעלה.</li>
+                    <li>לחץ על <strong>"שמור הגדרות ענן"</strong> ולאחר מכן <strong>"העלה את כל הנתונים לענן"</strong> — ומאותו רגע כל שינוי יסונכרן למסך בית הכנסת מיידית!</li>
+                </ol>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         TOAST CONTAINER
+    ══════════════════════════════════════════════════════════════ -->
+    <div id="toastContainer"></div>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         ADMIN APPLICATION SCRIPT
+    ══════════════════════════════════════════════════════════════ -->
+    <script>
+        'use strict';
+
+        // ── Constants & Helpers ─────────────────────────────────────
+        const HEBREW_MONTHS = {
+            1: 'ניסן', 2: 'אייר', 3: 'סיוון', 4: 'תמוז', 5: 'אב', 6: 'אלול',
+            7: 'תשרי', 8: 'חשוון', 9: 'כסלו', 10: 'טבת', 11: 'שבט', 12: 'אדר (א׳)', 13: 'אדר ב׳'
+        };
+
+        const HEBREW_DAY_LETTERS = {
+            1: "א׳", 2: "ב׳", 3: "ג׳", 4: "ד׳", 5: "ה׳", 6: "ו׳", 7: "ז׳", 8: "ח׳", 9: "ט׳", 10: "י׳",
+            11: "י״א", 12: "י״ב", 13: "י״ג", 14: "י״ד", 15: "ט״ו", 16: "ט״ז", 17: "י״ז", 18: "י״ח", 19: "י״ט", 20: "כ׳",
+            21: "כ״א", 22: "כ״ב", 23: "כ״ג", 24: "כ״ד", 25: "כ״ה", 26: "כ״ו", 27: "כ״ז", 28: "כ״ח", 29: "כ״ט", 30: "ל׳"
+        };
+
+        // ── State ───────────────────────────────────────────────────
+        let currentConfig = {};
+        let filteredMemorials = [];
+        let memorialCurrentPage = 1;
+        const MEMORIALS_PER_PAGE = 25;
+        let firestoreDb = null;
+        let isCloudConnected = false;
+
+        // ── Offline Hebrew Date Calculation ─────────────────────────
+        function getHebrewDateOffline(dateObj) {
+            try {
+                const formatter = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', {
+                    day: 'numeric',
+                    month: 'numeric',
+                    year: 'numeric'
+                });
+                const parts = formatter.formatToParts(dateObj);
+                let day = 1, month = 1, year = 5786;
+                parts.forEach(p => {
+                    if (p.type === 'day') day = parseInt(p.value, 10);
+                    if (p.type === 'month') month = parseInt(p.value, 10);
+                    if (p.type === 'year') year = parseInt(p.value, 10);
+                });
+                return { day, month, year };
+            } catch (e) {
+                return { day: 1, month: 7, year: 5786 };
+            }
+        }
+
+        // Get Hebrew dates for the current week (Sunday - Shabbat)
+        function getThisWeekDates() {
+            const today = new Date();
+            const currentDow = today.getDay();
+            const sundayDate = new Date(today);
+            sundayDate.setDate(today.getDate() - currentDow);
+
+            const thisWeekDates = [];
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(sundayDate);
+                d.setDate(sundayDate.getDate() + i);
+                const h = getHebrewDateOffline(d);
+                thisWeekDates.push({ day: h.day, month: h.month, dow: i });
+            }
+            return thisWeekDates;
+        }
+
+        // ── Toast Notifications ─────────────────────────────────────
+        function showToast(msg, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+            toast.innerHTML = `<span>${icons[type] || 'ℹ️'}</span> <span>${msg}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // ── Initialization ──────────────────────────────────────────
+        const SYNAGOGUE_BASE_DECEASED = [{"id": "csv_1", "name": "חייא הכהן", "parentName": "מזל ז\"ל", "gender": "m", "hebrewDay": 15, "hebrewMonth": 7, "hebrewDateStr": "ט״ו בתשרי", "hebrewYear": "תרפ\"ו", "donor": ""}, {"id": "csv_2", "name": "אסתר", "parentName": "אסטריה ז\"ל", "gender": "f", "hebrewDay": 4, "hebrewMonth": 6, "hebrewDateStr": "ד׳ באלול", "hebrewYear": "תשכ\"ט", "donor": ""}, {"id": "csv_3", "name": "מרים", "parentName": "חנם וחביב", "gender": "f", "hebrewDay": 27, "hebrewMonth": 1, "hebrewDateStr": "כ״ז בניסן", "hebrewYear": "תשנב", "donor": ""}, {"id": "csv_4", "name": "שלמה חסון", "parentName": "מרים זצ\"ל", "gender": "m", "hebrewDay": 18, "hebrewMonth": 10, "hebrewDateStr": "י״ח בטבת", "hebrewYear": "תש\"ס", "donor": ""}, {"id": "csv_5", "name": "יוסף ז\"ל", "parentName": "ניסן (בצלאלי) ומרגלית", "gender": "m", "hebrewDay": 3, "hebrewMonth": 6, "hebrewDateStr": "ג׳ באלול", "hebrewYear": "תשנ\"ה", "donor": ""}, {"id": "csv_6", "name": "יגאל ברוך ז\"ל", "parentName": "ברטה ואברהם", "gender": "m", "hebrewDay": 3, "hebrewMonth": 6, "hebrewDateStr": "ג׳ באלול", "hebrewYear": "תשל\"ח", "donor": ""}, {"id": "csv_7", "name": "שאול גולדברג", "parentName": "שושנה ז\"ל", "gender": "m", "hebrewDay": 29, "hebrewMonth": 2, "hebrewDateStr": "כ״ט באייר", "hebrewYear": "תשס\"ו", "donor": ""}, {"id": "csv_8", "name": "שרה הוד", "parentName": "אסתר ז\"ל", "gender": "f", "hebrewDay": 29, "hebrewMonth": 12, "hebrewDateStr": "כ״ט באדר", "hebrewYear": "תשנ\"ט", "donor": ""}, {"id": "csv_9", "name": "שרה אספן", "parentName": "פרחה ז\"ל", "gender": "f", "hebrewDay": 6, "hebrewMonth": 2, "hebrewDateStr": "ו׳ באייר", "hebrewYear": "תשנ\"ט", "donor": ""}, {"id": "csv_10", "name": "גלילה יונה", "parentName": "רחל ז\"ל", "gender": "f", "hebrewDay": 9, "hebrewMonth": 3, "hebrewDateStr": "ט׳ בסיוון", "hebrewYear": "תשנ\"ט", "donor": ""}, {"id": "csv_11", "name": "אלה כהן", "parentName": "צפורה פלדמן ז\"ל", "gender": "f", "hebrewDay": 15, "hebrewMonth": 2, "hebrewDateStr": "ט״ו באייר", "hebrewYear": "תשנ\"ז", "donor": ""}, {"id": "csv_12", "name": "משה לוי", "parentName": "סרח זצ\"ל", "gender": "m", "hebrewDay": 11, "hebrewMonth": 4, "hebrewDateStr": "י״א בתמוז", "hebrewYear": "תשנ\"ז", "donor": ""}, {"id": "csv_13", "name": "סיגל", "parentName": "ברטה ז\"ל", "gender": "f", "hebrewDay": 30, "hebrewMonth": 12, "hebrewDateStr": "ל׳ באדר", "hebrewYear": "תשנ\"ב", "donor": ""}, {"id": "csv_14", "name": "שלם", "parentName": "מרים זצ\"ל", "gender": "m", "hebrewDay": 5, "hebrewMonth": 1, "hebrewDateStr": "ה׳ בניסן", "hebrewYear": "תשס\"ב", "donor": ""}, {"id": "csv_15", "name": "משה (מוסה) אבוגנים", "parentName": "רבקה ז\"ל", "gender": "m", "hebrewDay": 28, "hebrewMonth": 3, "hebrewDateStr": "כ״ח בסיוון", "hebrewYear": "תשס\"ב", "donor": ""}, {"id": "csv_16", "name": "שלום קומבור", "parentName": "סעדה ז\"ל", "gender": "m", "hebrewDay": 13, "hebrewMonth": 2, "hebrewDateStr": "י״ג באייר", "hebrewYear": "תשנ\"ח", "donor": ""}, {"id": "csv_17", "name": "הלה מוזס", "parentName": "סרח ז\"ל", "gender": "f", "hebrewDay": 18, "hebrewMonth": 3, "hebrewDateStr": "י״ח בסיוון", "hebrewYear": "תשמ\"ח", "donor": ""}, {"id": "csv_18", "name": "דינה", "parentName": "מרים ויעקב רובין ז\"ל", "gender": "f", "hebrewDay": 24, "hebrewMonth": 1, "hebrewDateStr": "כ״ד בניסן", "hebrewYear": "תשנ\"ט", "donor": ""}, {"id": "csv_19", "name": "אשר אלגד", "parentName": "רינה ואליעזר ז\"ל", "gender": "m", "hebrewDay": 27, "hebrewMonth": 2, "hebrewDateStr": "כ״ז באייר", "hebrewYear": "תשס\"ה", "donor": ""}, {"id": "csv_20", "name": "ישראל יחזקאל", "parentName": "סעידה ז\"ל", "gender": "m", "hebrewDay": 14, "hebrewMonth": 3, "hebrewDateStr": "י״ד בסיוון", "hebrewYear": "תשנ\"ה", "donor": ""}, {"id": "csv_21", "name": "פורטונה (מזל) מלל", "parentName": "רבקה ז\"ל", "gender": "f", "hebrewDay": 14, "hebrewMonth": 9, "hebrewDateStr": "י״ד בכסלו", "hebrewYear": "תשנ\"ט", "donor": ""}, {"id": "csv_22", "name": "נסים בר-זכאי (ברסקה)", "parentName": "שרה ז\"ל", "gender": "m", "hebrewDay": 5, "hebrewMonth": 4, "hebrewDateStr": "ה׳ בתמוז", "hebrewYear": "תשמ\"ט", "donor": ""}, {"id": "csv_23", "name": "אמה חסון", "parentName": "מזל ז\"ל", "gender": "f", "hebrewDay": 17, "hebrewMonth": 2, "hebrewDateStr": "י״ז באייר", "hebrewYear": "תשנ\"ט", "donor": ""}, {"id": "csv_24", "name": "אסתר קומבור", "parentName": "סעדה ז\"ל (לבית עוזרי)", "gender": "f", "hebrewDay": 20, "hebrewMonth": 7, "hebrewDateStr": "כ׳ בתשרי", "hebrewYear": "תש\"ן", "donor": ""}, {"id": "csv_25", "name": "מרים", "parentName": "רחל", "gender": "f", "hebrewDay": 6, "hebrewMonth": 11, "hebrewDateStr": "ו׳ בשבט", "hebrewYear": "תשנ\"ז", "donor": ""}, {"id": "csv_26", "name": "ראובן רביע", "parentName": "ששון וחנה תופחה ז\"ל", "gender": "m", "hebrewDay": 18, "hebrewMonth": 6, "hebrewDateStr": "י״ח באלול", "hebrewYear": "תשנ\"ט", "donor": ""}, {"id": "csv_27", "name": "סעדה מנצור ז\"ל", "parentName": "סעדה ושלום קומבור", "gender": "f", "hebrewDay": 24, "hebrewMonth": 10, "hebrewDateStr": "כ״ד בטבת", "hebrewYear": "תשכ\"ז", "donor": ""}, {"id": "csv_28", "name": "ר' יעקב רביע", "parentName": "חנה תפחה זצ\"ל", "gender": "m", "hebrewDay": 8, "hebrewMonth": 11, "hebrewDateStr": "ח׳ בשבט", "hebrewYear": "תשס\"ה", "donor": ""}, {"id": "csv_29", "name": "יצחק ג'הרן לוי", "parentName": "נדרה ז\"ל", "gender": "m", "hebrewDay": 29, "hebrewMonth": 11, "hebrewDateStr": "כ״ט בשבט", "hebrewYear": "תשס\"ב", "donor": ""}, {"id": "csv_30", "name": "עידית", "parentName": "משה ודליה ז\"ל", "gender": "f", "hebrewDay": 22, "hebrewMonth": 2, "hebrewDateStr": "כ״ב באייר", "hebrewYear": "תשס\"א", "donor": ""}, {"id": "csv_31", "name": "אמנון ממן", "parentName": "מסעודה ז\"ל", "gender": "m", "hebrewDay": 16, "hebrewMonth": 12, "hebrewDateStr": "ט״ז באדר", "hebrewYear": "תשס\"ב", "donor": ""}, {"id": "csv_32", "name": "רבקה לוי", "parentName": "רחל ז\"ל", "gender": "f", "hebrewDay": 3, "hebrewMonth": 3, "hebrewDateStr": "ג׳ בסיוון", "hebrewYear": "תשס\"א", "donor": ""}, {"id": "csv_33", "name": "משה מזרחי", "parentName": "סבריה ושלמה ז\"ל", "gender": "m", "hebrewDay": 13, "hebrewMonth": 10, "hebrewDateStr": "י״ג בטבת", "hebrewYear": "תשס\"ג", "donor": ""}, {"id": "csv_34", "name": "רות סימן טוב", "parentName": "מזל ז\"ל", "gender": "f", "hebrewDay": 11, "hebrewMonth": 3, "hebrewDateStr": "י״א בסיוון", "hebrewYear": "תשנ\"ח", "donor": ""}, {"id": "csv_35", "name": "דוד", "parentName": "נועם ועזרא ג'אנגנה ז\"ל", "gender": "m", "hebrewDay": 17, "hebrewMonth": 4, "hebrewDateStr": "י״ז בתמוז", "hebrewYear": "תשנ\"ה", "donor": ""}, {"id": "csv_36", "name": "אריה ליאון ביטנר ז\"ל", "parentName": "אברהם ורוזה ז\"ל", "gender": "m", "hebrewDay": 28, "hebrewMonth": 10, "hebrewDateStr": "כ״ח בטבת", "hebrewYear": "תשנ\"ט", "donor": ""}, {"id": "csv_37", "name": "זהבה (זיוית) כהן", "parentName": "רחל ז\"ל", "gender": "f", "hebrewDay": 1, "hebrewMonth": 11, "hebrewDateStr": "א׳ בשבט", "hebrewYear": "תשנ\"ט", "donor": ""}, {"id": "csv_38", "name": "אליהו לוי", "parentName": "מרים זצ\"ל", "gender": "m", "hebrewDay": 3, "hebrewMonth": 4, "hebrewDateStr": "ג׳ בתמוז", "hebrewYear": "תשס\"ב", "donor": ""}, {"id": "csv_39", "name": "מרגלית אהרוני", "parentName": "סולטנה ז\"ל (לבית אבוגנים)", "gender": "f", "hebrewDay": 7, "hebrewMonth": 3, "hebrewDateStr": "ז׳ בסיוון", "hebrewYear": "תשנ\"ב", "donor": ""}, {"id": "csv_40", "name": "אליהו זקן", "parentName": "עזיזה", "gender": "m", "hebrewDay": 4, "hebrewMonth": 12, "hebrewDateStr": "ד׳ באדר", "hebrewYear": "תשכ\"ט", "donor": ""}, {"id": "csv_41", "name": "אפרת דחליקה (דקל) ז\"ל", "parentName": "יעקב ועמליה", "gender": "f", "hebrewDay": 9, "hebrewMonth": 11, "hebrewDateStr": "ט׳ בשבט", "hebrewYear": "תשס\"ג", "donor": ""}, {"id": "csv_42", "name": "בסו (בתיה) זקן", "parentName": "שלמה וכזלה ז\"ל", "gender": "f", "hebrewDay": 26, "hebrewMonth": 9, "hebrewDateStr": "כ״ו בכסלו", "hebrewYear": "תשס\"ב", "donor": ""}, {"id": "csv_43", "name": "ציון פרץ ז\"ל", "parentName": "שמחה", "gender": "m", "hebrewDay": 10, "hebrewMonth": 5, "hebrewDateStr": "י׳ באב", "hebrewYear": "תשס\"א", "donor": ""}, {"id": "csv_44", "name": "מרים דהאן", "parentName": "כסנה ורחמים ז\"ל", "gender": "f", "hebrewDay": 3, "hebrewMonth": 1, "hebrewDateStr": "ג׳ בניסן", "hebrewYear": "תש\"ע", "donor": ""}, {"id": "csv_45", "name": "מאיר זכריה", "parentName": "תופחה ז\"ל", "gender": "m", "hebrewDay": 4, "hebrewMonth": 7, "hebrewDateStr": "ד׳ בתשרי", "hebrewYear": "תשנ\"ד", "donor": ""}, {"id": "csv_46", "name": "יעקב סיילס", "parentName": "מרדכי וגרייס ז\"ל", "gender": "m", "hebrewDay": 6, "hebrewMonth": 5, "hebrewDateStr": "ו׳ באב", "hebrewYear": "תשס\"ג", "donor": ""}, {"id": "csv_47", "name": "יוסף רוט", "parentName": "יונה וברטה ז\"ל", "gender": "m", "hebrewDay": 28, "hebrewMonth": 11, "hebrewDateStr": "כ״ח בשבט", "hebrewYear": "תש\"ס", "donor": ""}, {"id": "csv_48", "name": "אורי שפר", "parentName": "גוהר ז\"ל", "gender": "m", "hebrewDay": 19, "hebrewMonth": 4, "hebrewDateStr": "י״ט בתמוז", "hebrewYear": "תש\"ס", "donor": ""}, {"id": "csv_49", "name": "יצחק", "parentName": "שרה ג'ניאן ז\"ל", "gender": "m", "hebrewDay": 20, "hebrewMonth": 5, "hebrewDateStr": "כ׳ באב", "hebrewYear": "תשמ\"ג", "donor": ""}, {"id": "csv_50", "name": "מונבר", "parentName": "רחל ג'ניאן ז\"ל", "gender": "f", "hebrewDay": 1, "hebrewMonth": 5, "hebrewDateStr": "א׳ באב", "hebrewYear": "תשמ\"ה", "donor": ""}, {"id": "csv_51", "name": "ר' יעקב גאליס", "parentName": "רחל ז\"ל", "gender": "m", "hebrewDay": 2, "hebrewMonth": 5, "hebrewDateStr": "ב׳ באב", "hebrewYear": "תשנ\"ח", "donor": ""}, {"id": "csv_52", "name": "שרה (סרח)", "parentName": "רוחמה ז\"ל", "gender": "f", "hebrewDay": 29, "hebrewMonth": 10, "hebrewDateStr": "כ״ט בטבת", "hebrewYear": "תשס\"ה", "donor": ""}, {"id": "csv_53", "name": "צאלח שם טוב", "parentName": "רגינה ז\"ל", "gender": "m", "hebrewDay": 6, "hebrewMonth": 4, "hebrewDateStr": "ו׳ בתמוז", "hebrewYear": "תשנ\"ד", "donor": ""}, {"id": "csv_54", "name": "שולה סלחה שם-טוב", "parentName": "חתון ז\"ל", "gender": "f", "hebrewDay": 24, "hebrewMonth": 4, "hebrewDateStr": "כ״ד בתמוז", "hebrewYear": "תשס\"ג", "donor": ""}, {"id": "csv_55", "name": "זלפה בן עמרם", "parentName": "רחל ז\"ל", "gender": "f", "hebrewDay": 25, "hebrewMonth": 10, "hebrewDateStr": "כ״ה בטבת", "hebrewYear": "תשמ\"א", "donor": ""}, {"id": "csv_56", "name": "מזל", "parentName": "מרורי ז\"ל", "gender": "f", "hebrewDay": 7, "hebrewMonth": 6, "hebrewDateStr": "ז׳ באלול", "hebrewYear": "תשנ\"ט", "donor": ""}, {"id": "csv_57", "name": "מזל פירו", "parentName": "דינה ז\"ל", "gender": "f", "hebrewDay": 21, "hebrewMonth": 13, "hebrewDateStr": "כ״א באדר ב׳", "hebrewYear": "תשע\"א", "donor": ""}, {"id": "csv_58", "name": "יורם גדליהו אבן חן ז\"ל", "parentName": "תמר", "gender": "m", "hebrewDay": 9, "hebrewMonth": 11, "hebrewDateStr": "ט׳ בשבט", "hebrewYear": "תשע\"ו", "donor": ""}, {"id": "csv_59", "name": "מיכאל חזן ז\"ל", "parentName": "שמחה ויעקב ז\"ל", "gender": "m", "hebrewDay": 15, "hebrewMonth": 6, "hebrewDateStr": "ט״ו באלול", "hebrewYear": "תשע\"א", "donor": ""}, {"id": "csv_60", "name": "ששון", "parentName": "ראובן וצלחה רביע ז\"ל", "gender": "m", "hebrewDay": 20, "hebrewMonth": 8, "hebrewDateStr": "כ׳ בחשוון", "hebrewYear": "תשכ\"ה", "donor": ""}, {"id": "csv_61", "name": "תופחה חנה", "parentName": "שמחה רביע ע\"ה", "gender": "f", "hebrewDay": 6, "hebrewMonth": 2, "hebrewDateStr": "ו׳ באייר", "hebrewYear": "תשמ\"ג", "donor": ""}, {"id": "csv_62", "name": "ליאורה גורל ריחמפור ז\"ל", "parentName": "מרים ז\"ל ושמואל", "gender": "f", "hebrewDay": 13, "hebrewMonth": 6, "hebrewDateStr": "י״ג באלול", "hebrewYear": "תשע\"ד", "donor": ""}, {"id": "csv_63", "name": "גוהר", "parentName": "דינה וחיים ברוכים ע\"ה", "gender": "f", "hebrewDay": 6, "hebrewMonth": 7, "hebrewDateStr": "ו׳ בתשרי", "hebrewYear": "תשכ\"ח", "donor": ""}, {"id": "csv_64", "name": "אהרן", "parentName": "רבקה ואברהם ז\"ל", "gender": "m", "hebrewDay": 18, "hebrewMonth": 11, "hebrewDateStr": "י״ח בשבט", "hebrewYear": "תש", "donor": ""}, {"id": "csv_65", "name": "מרים", "parentName": "חנה וחביב ע\"ה", "gender": "f", "hebrewDay": 26, "hebrewMonth": 1, "hebrewDateStr": "כ״ו בניסן", "hebrewYear": "תשנ\"ב", "donor": ""}, {"id": "csv_66", "name": "שמואל (סמי) חזן", "parentName": "שמחה ויעקב ז\"ל", "gender": "m", "hebrewDay": 8, "hebrewMonth": 3, "hebrewDateStr": "ח׳ בסיוון", "hebrewYear": "תשע\"ה", "donor": ""}, {"id": "csv_67", "name": "אורלי אדרי", "parentName": "רחל ז\"ל", "gender": "f", "hebrewDay": 9, "hebrewMonth": 3, "hebrewDateStr": "ט׳ בסיוון", "hebrewYear": "תשע\"ב", "donor": ""}, {"id": "csv_68", "name": "פנחס לוי ז\"ל", "parentName": "מלכה ושמעון", "gender": "m", "hebrewDay": 24, "hebrewMonth": 13, "hebrewDateStr": "כ״ד באדר ב׳", "hebrewYear": "תשי\"א", "donor": ""}, {"id": "csv_69", "name": "מלכה אשרי", "parentName": "לולו ז\"ל", "gender": "f", "hebrewDay": 13, "hebrewMonth": 1, "hebrewDateStr": "י״ג בניסן", "hebrewYear": "תשע\"ב", "donor": ""}, {"id": "csv_70", "name": "יפה", "parentName": "מרים ע\"ה", "gender": "f", "hebrewDay": 5, "hebrewMonth": 1, "hebrewDateStr": "ה׳ בניסן", "hebrewYear": "תשמ\"ה", "donor": ""}, {"id": "csv_71", "name": "שמעון זכריה ז\"ל", "parentName": "פרחה", "gender": "m", "hebrewDay": 15, "hebrewMonth": 1, "hebrewDateStr": "ט״ו בניסן", "hebrewYear": "תשנ\"ה", "donor": ""}, {"id": "csv_72", "name": "יעקב", "parentName": "מסעודה ז\"ל", "gender": "m", "hebrewDay": 24, "hebrewMonth": 5, "hebrewDateStr": "כ״ד באב", "hebrewYear": "תש\"ז", "donor": ""}, {"id": "csv_73", "name": "מסעודה", "parentName": "חביבה ז\"ל", "gender": "f", "hebrewDay": 8, "hebrewMonth": 1, "hebrewDateStr": "ח׳ בניסן", "hebrewYear": "תשל\"ו", "donor": ""}, {"id": "csv_74", "name": "רבי שלמה נחום", "parentName": "רחמה ז\"ל", "gender": "m", "hebrewDay": 11, "hebrewMonth": 6, "hebrewDateStr": "י״א באלול", "hebrewYear": "תש\"ג", "donor": ""}, {"id": "csv_75", "name": "שרה", "parentName": "נועם ז\"ל", "gender": "f", "hebrewDay": 23, "hebrewMonth": 1, "hebrewDateStr": "כ״ג בניסן", "hebrewYear": "תשל\"ג", "donor": ""}, {"id": "csv_76", "name": "ר' משה חיים הכהן מולקנדוף זצ\"ל", "parentName": "רחמים ושרח", "gender": "m", "hebrewDay": 6, "hebrewMonth": 12, "hebrewDateStr": "ו׳ באדר", "hebrewYear": "תשנ\"ד", "donor": ""}, {"id": "csv_77", "name": "דבורה מולקנדוף ז\"ל", "parentName": "אבא חייא וחפצי ראובנוף", "gender": "f", "hebrewDay": 21, "hebrewMonth": 7, "hebrewDateStr": "כ״א בתשרי", "hebrewYear": "תשנ\"ה", "donor": ""}, {"id": "csv_78", "name": "תמר מולקנדוף ז\"ל", "parentName": "משה חיים הכהן ודבורה", "gender": "f", "hebrewDay": 17, "hebrewMonth": 3, "hebrewDateStr": "י״ז בסיוון", "hebrewYear": "תשנ\"ב", "donor": ""}, {"id": "csv_79", "name": "יהודית לוי", "parentName": "שולמית ז\"ל", "gender": "f", "hebrewDay": 9, "hebrewMonth": 8, "hebrewDateStr": "ט׳ בחשוון", "hebrewYear": "תשע\"ה", "donor": ""}, {"id": "csv_80", "name": "שמעון קבסה ז\"ל", "parentName": "מרדכי וחסיבה", "gender": "m", "hebrewDay": 20, "hebrewMonth": 10, "hebrewDateStr": "כ׳ בטבת", "hebrewYear": "תשע\"ד", "donor": ""}, {"id": "csv_81", "name": "מרדכי כהן", "parentName": "מרים זצ\"ל", "gender": "m", "hebrewDay": 11, "hebrewMonth": 6, "hebrewDateStr": "י״א באלול", "hebrewYear": "תשע\"ב", "donor": ""}, {"id": "csv_82", "name": "רבקה", "parentName": "דודו מזרחי לוי ז\"ל", "gender": "f", "hebrewDay": 1, "hebrewMonth": 10, "hebrewDateStr": "א׳ בטבת", "hebrewYear": "תשע\"ה", "donor": ""}, {"id": "csv_83", "name": "יקוט מרגלית אבו ז\"ל", "parentName": "חנה", "gender": "f", "hebrewDay": 11, "hebrewMonth": 3, "hebrewDateStr": "י״א בסיוון", "hebrewYear": "תשע\"ה", "donor": ""}, {"id": "csv_84", "name": "מרים טביב", "parentName": "שרה ז\"ל", "gender": "f", "hebrewDay": 25, "hebrewMonth": 1, "hebrewDateStr": "כ״ה בניסן", "hebrewYear": "תשע\"ב", "donor": ""}, {"id": "csv_85", "name": "אליהו", "parentName": "נונה בר חיים ז\"ל", "gender": "m", "hebrewDay": 16, "hebrewMonth": 4, "hebrewDateStr": "ט״ז בתמוז", "hebrewYear": "תשע\"ה", "donor": ""}, {"id": "csv_86", "name": "יוסף", "parentName": "אסתר ז\"ל", "gender": "m", "hebrewDay": 29, "hebrewMonth": 11, "hebrewDateStr": "כ״ט בשבט", "hebrewYear": "תשל\"א", "donor": ""}, {"id": "csv_87", "name": "יצחק משמור ז\"ל", "parentName": "יצחק ושרה", "gender": "m", "hebrewDay": 13, "hebrewMonth": 12, "hebrewDateStr": "י״ג באדר", "hebrewYear": "תשנ\"ו", "donor": ""}, {"id": "csv_88", "name": "חנה בנין-שילה", "parentName": "מנחם ולאה ז\"ל", "gender": "f", "hebrewDay": 19, "hebrewMonth": 3, "hebrewDateStr": "י״ט בסיוון", "hebrewYear": "תשמ\"ו", "donor": ""}, {"id": "csv_89", "name": "אליהו ארווץ", "parentName": "שלמה ושמחה ז\"ל", "gender": "m", "hebrewDay": 6, "hebrewMonth": 12, "hebrewDateStr": "ו׳ באדר", "hebrewYear": "תשנ\"ח", "donor": ""}, {"id": "csv_90", "name": "מרדכי", "parentName": "זלפה שראבי ז\"ל", "gender": "m", "hebrewDay": 28, "hebrewMonth": 7, "hebrewDateStr": "כ״ח בתשרי", "hebrewYear": "תשמ\"ה", "donor": ""}, {"id": "csv_91", "name": "יצחק בן-ניסן", "parentName": "בת שבע ומאיר ז\"ל", "gender": "m", "hebrewDay": 20, "hebrewMonth": 12, "hebrewDateStr": "כ׳ באדר", "hebrewYear": "תשס\"ז", "donor": ""}, {"id": "csv_92", "name": "ציון בן-עמרם", "parentName": "שרה ז\"ל", "gender": "m", "hebrewDay": 2, "hebrewMonth": 12, "hebrewDateStr": "ב׳ באדר", "hebrewYear": "תשנ\"ג", "donor": ""}, {"id": "csv_93", "name": "פרוין נעומי אפרימי ז\"ל", "parentName": "שמואל ז\"ל ורבקה", "gender": "f", "hebrewDay": 16, "hebrewMonth": 3, "hebrewDateStr": "ט״ז בסיוון", "hebrewYear": "תש\"ע", "donor": ""}, {"id": "csv_94", "name": "עוזי רוטנברג", "parentName": "שרה ושלמה ז\"ל", "gender": "m", "hebrewDay": 23, "hebrewMonth": 7, "hebrewDateStr": "כ״ג בתשרי", "hebrewYear": "תשמ\"ז", "donor": ""}, {"id": "csv_95", "name": "יהודה ביאזי", "parentName": "רבקה ז\"ל", "gender": "m", "hebrewDay": 1, "hebrewMonth": 3, "hebrewDateStr": "א׳ בסיוון", "hebrewYear": "תש\"ח", "donor": ""}, {"id": "csv_96", "name": "כתון ביאזי", "parentName": "אסתר ז\"ל", "gender": "f", "hebrewDay": 2, "hebrewMonth": 3, "hebrewDateStr": "ב׳ בסיוון", "hebrewYear": "תשמ\"ה", "donor": ""}, {"id": "csv_97", "name": "מרדכי מנצור ז\"ל", "parentName": "בן שלום-אהרון וחנה", "gender": "m", "hebrewDay": 4, "hebrewMonth": 1, "hebrewDateStr": "ד׳ בניסן", "hebrewYear": "תש\"ח", "donor": ""}, {"id": "csv_98", "name": "הדסה היימברג ז\"ל", "parentName": "סעדה ומרדכי מנצור", "gender": "f", "hebrewDay": 21, "hebrewMonth": 4, "hebrewDateStr": "כ״א בתמוז", "hebrewYear": "תשנ\"ז", "donor": ""}, {"id": "csv_99", "name": "ר' יהודה כהן", "parentName": "ביה ז\"ל", "gender": "m", "hebrewDay": 9, "hebrewMonth": 12, "hebrewDateStr": "ט׳ באדר", "hebrewYear": "תשנ\"ז", "donor": ""}, {"id": "csv_100", "name": "אסתר ג'הרן", "parentName": "נדרה ז\"ל", "gender": "f", "hebrewDay": 15, "hebrewMonth": 6, "hebrewDateStr": "ט״ו באלול", "hebrewYear": "תשס\"ד", "donor": ""}, {"id": "csv_101", "name": "סול ארווץ", "parentName": "חיים ושמחה ז\"ל", "gender": "f", "hebrewDay": 26, "hebrewMonth": 4, "hebrewDateStr": "כ״ו בתמוז", "hebrewYear": "תשס\"ג", "donor": ""}, {"id": "csv_102", "name": "טובה נוה", "parentName": "רבקה ז\"ל", "gender": "f", "hebrewDay": 24, "hebrewMonth": 6, "hebrewDateStr": "כ״ד באלול", "hebrewYear": "תשס\"ג", "donor": ""}, {"id": "csv_103", "name": "מג'ידה", "parentName": "חלווה ז\"ל", "gender": "f", "hebrewDay": 16, "hebrewMonth": 10, "hebrewDateStr": "ט״ז בטבת", "hebrewYear": "תשל\"ג", "donor": ""}, {"id": "csv_104", "name": "יזי", "parentName": "חלווה ז\"ל", "gender": "f", "hebrewDay": 10, "hebrewMonth": 3, "hebrewDateStr": "י׳ בסיוון", "hebrewYear": "תשנ\"ב", "donor": ""}, {"id": "csv_105", "name": "אדלה מיוחס", "parentName": "מזל ז\"ל", "gender": "f", "hebrewDay": 16, "hebrewMonth": 10, "hebrewDateStr": "ט״ז בטבת", "hebrewYear": "תשנ\"ד", "donor": ""}, {"id": "csv_106", "name": "שמחה", "parentName": "רחל ז\"ל", "gender": "f", "hebrewDay": 1, "hebrewMonth": 9, "hebrewDateStr": "א׳ בכסלו", "hebrewYear": "תשנ\"ט", "donor": ""}, {"id": "csv_107", "name": "יעקב", "parentName": "ראובן ז\"ל", "gender": "m", "hebrewDay": 1, "hebrewMonth": 7, "hebrewDateStr": "א׳ בתשרי", "hebrewYear": "תש", "donor": ""}, {"id": "csv_108", "name": "זלפה", "parentName": "אלישע ע\"ה", "gender": "f", "hebrewDay": 1, "hebrewMonth": 7, "hebrewDateStr": "א׳ בתשרי", "hebrewYear": "תש", "donor": ""}, {"id": "csv_109", "name": "תמר", "parentName": "יעקב ע\"ה", "gender": "f", "hebrewDay": 1, "hebrewMonth": 7, "hebrewDateStr": "א׳ בתשרי", "hebrewYear": "תש", "donor": ""}, {"id": "csv_110", "name": "ר' דוד עואץ' כהן", "parentName": "שרה ז\"ל", "gender": "m", "hebrewDay": 13, "hebrewMonth": 11, "hebrewDateStr": "י״ג בשבט", "hebrewYear": "תשמ\"ה", "donor": ""}, {"id": "csv_111", "name": "ויקטוריה כהן", "parentName": "חנה ז\"ל", "gender": "f", "hebrewDay": 29, "hebrewMonth": 6, "hebrewDateStr": "כ״ט באלול", "hebrewYear": "תשנ\"ד", "donor": ""}, {"id": "csv_112", "name": "ר' יחזקאל בקשי הכהן", "parentName": "עמאם ז\"ל", "gender": "m", "hebrewDay": 28, "hebrewMonth": 12, "hebrewDateStr": "כ״ח באדר", "hebrewYear": "תשמ\"ו", "donor": ""}, {"id": "csv_113", "name": "נסים", "parentName": "פרחה ז\"ל", "gender": "m", "hebrewDay": 17, "hebrewMonth": 10, "hebrewDateStr": "י״ז בטבת", "hebrewYear": "תש", "donor": ""}, {"id": "csv_114", "name": "קתי דוינסון", "parentName": "רינה ושמואל כהן ז\"ל", "gender": "f", "hebrewDay": 22, "hebrewMonth": 10, "hebrewDateStr": "כ״ב בטבת", "hebrewYear": "תשס\"ז", "donor": ""}, {"id": "csv_115", "name": "אליהו אפרימיאן", "parentName": "מנשה וטאוס ז\"ל", "gender": "m", "hebrewDay": 27, "hebrewMonth": 9, "hebrewDateStr": "כ״ז בכסלו", "hebrewYear": "תשמ\"ה", "donor": ""}, {"id": "csv_116", "name": "יעקב", "parentName": "צביה ז\"ל מזרחי", "gender": "m", "hebrewDay": 9, "hebrewMonth": 7, "hebrewDateStr": "ט׳ בתשרי", "hebrewYear": "תשמ\"ו", "donor": ""}, {"id": "csv_117", "name": "אסת מזרחי", "parentName": "רחל ז\"ל", "gender": "f", "hebrewDay": 24, "hebrewMonth": 6, "hebrewDateStr": "כ״ד באלול", "hebrewYear": "תשנ\"ח", "donor": ""}, {"id": "csv_118", "name": "יצחק מרדכי צדקיהו", "parentName": "דינה ז\"ל", "gender": "m", "hebrewDay": 26, "hebrewMonth": 7, "hebrewDateStr": "כ״ו בתשרי", "hebrewYear": "תשכ\"ח", "donor": ""}, {"id": "csv_119", "name": "זלפה צדקיהו", "parentName": "בסו ז\"ל", "gender": "f", "hebrewDay": 8, "hebrewMonth": 11, "hebrewDateStr": "ח׳ בשבט", "hebrewYear": "תשמ\"ה", "donor": ""}, {"id": "csv_120", "name": "יחזקאל שבתאי", "parentName": "מעתוקה ז\"ל", "gender": "m", "hebrewDay": 21, "hebrewMonth": 5, "hebrewDateStr": "כ״א באב", "hebrewYear": "תשס\"ו", "donor": ""}, {"id": "csv_121", "name": "חנה ברזני", "parentName": "מרים ז\"ל", "gender": "f", "hebrewDay": 2, "hebrewMonth": 8, "hebrewDateStr": "ב׳ בחשוון", "hebrewYear": "תשמ\"ו", "donor": ""}, {"id": "csv_122", "name": "כאזלה", "parentName": "חבובה מזרחי ז\"ל", "gender": "f", "hebrewDay": 4, "hebrewMonth": 2, "hebrewDateStr": "ד׳ באייר", "hebrewYear": "תשמ\"ו", "donor": ""}, {"id": "csv_123", "name": "שושנה", "parentName": "מזל ששון ז\"ל", "gender": "f", "hebrewDay": 18, "hebrewMonth": 5, "hebrewDateStr": "י״ח באב", "hebrewYear": "תש\"מ", "donor": ""}, {"id": "csv_124", "name": "מרדכי", "parentName": "מלכה ששון ז\"ל", "gender": "m", "hebrewDay": 11, "hebrewMonth": 2, "hebrewDateStr": "י״א באייר", "hebrewYear": "תשי\"א", "donor": ""}, {"id": "csv_125", "name": "אליעזר מויאל", "parentName": "חיה ז\"ל", "gender": "m", "hebrewDay": 20, "hebrewMonth": 12, "hebrewDateStr": "כ׳ באדר", "hebrewYear": "תשמ\"א", "donor": ""}, {"id": "csv_126", "name": "ראובן רעואל מזרחי", "parentName": "רחל ז\"ל", "gender": "m", "hebrewDay": 25, "hebrewMonth": 10, "hebrewDateStr": "כ״ה בטבת", "hebrewYear": "תשמ\"ה", "donor": ""}, {"id": "csv_127", "name": "לבנה לונה מזרחי", "parentName": "ידידה ז\"ל", "gender": "f", "hebrewDay": 23, "hebrewMonth": 8, "hebrewDateStr": "כ״ג בחשוון", "hebrewYear": "תשמ\"ו", "donor": ""}, {"id": "csv_128", "name": "שמואל", "parentName": "אסתר כהן ז\"ל", "gender": "m", "hebrewDay": 14, "hebrewMonth": 5, "hebrewDateStr": "י״ד באב", "hebrewYear": "תשמ\"ג", "donor": ""}, {"id": "csv_129", "name": "אסתר", "parentName": "יוכבד ז\"ל", "gender": "f", "hebrewDay": 25, "hebrewMonth": 7, "hebrewDateStr": "כ״ה בתשרי", "hebrewYear": "תשכ\"ח", "donor": ""}, {"id": "csv_130", "name": "משה חיים", "parentName": "דוד שכטר ז\"ל", "gender": "m", "hebrewDay": 12, "hebrewMonth": 2, "hebrewDateStr": "י״ב באייר", "hebrewYear": "תשל\"ו", "donor": ""}, {"id": "csv_131", "name": "עדה", "parentName": "רחל שכטר ז\"ל", "gender": "f", "hebrewDay": 14, "hebrewMonth": 1, "hebrewDateStr": "י״ד בניסן", "hebrewYear": "תשל\"ג", "donor": ""}, {"id": "csv_132", "name": "מאיר כהן", "parentName": "אסתר ז\"ל", "gender": "m", "hebrewDay": 13, "hebrewMonth": 12, "hebrewDateStr": "י״ג באדר", "hebrewYear": "תשמ\"ה", "donor": ""}, {"id": "csv_133", "name": "עזרא כאסכי", "parentName": "רינה ז\"ל", "gender": "m", "hebrewDay": 3, "hebrewMonth": 10, "hebrewDateStr": "ג׳ בטבת", "hebrewYear": "תשכ\"ג", "donor": ""}, {"id": "csv_134", "name": "עזיז", "parentName": "אסנת ז\"ל", "gender": "m", "hebrewDay": 24, "hebrewMonth": 12, "hebrewDateStr": "כ״ד באדר", "hebrewYear": "תשמ\"ו", "donor": ""}, {"id": "csv_135", "name": "נזימה", "parentName": "צלחה זמיר ז\"ל", "gender": "f", "hebrewDay": 23, "hebrewMonth": 11, "hebrewDateStr": "כ״ג בשבט", "hebrewYear": "תשמ\"ט", "donor": ""}, {"id": "csv_136", "name": "מ. שלמה", "parentName": "רחל נ\"ע", "gender": "m", "hebrewDay": 9, "hebrewMonth": 8, "hebrewDateStr": "ט׳ בחשוון", "hebrewYear": "תשמ\"ג", "donor": ""}, {"id": "csv_137", "name": "מרדכי מזרחי", "parentName": "שרה ז\"ל", "gender": "m", "hebrewDay": 25, "hebrewMonth": 8, "hebrewDateStr": "כ״ה בחשוון", "hebrewYear": "תשמ\"ו", "donor": ""}, {"id": "csv_138", "name": "דוד עלמני", "parentName": "מלכה ויוסף ז\"ל", "gender": "m", "hebrewDay": 28, "hebrewMonth": 2, "hebrewDateStr": "כ״ח באייר", "hebrewYear": "תש\"ל", "donor": ""}, {"id": "csv_139", "name": "צפורה אפרומאן", "parentName": "חנה ואברהם ז\"ל", "gender": "f", "hebrewDay": 28, "hebrewMonth": 9, "hebrewDateStr": "כ״ח בכסלו", "hebrewYear": "תשנ\"ג", "donor": ""}, {"id": "csv_140", "name": "בנימין", "parentName": "אלישע ז\"ל", "gender": "m", "hebrewDay": 1, "hebrewMonth": 7, "hebrewDateStr": "א׳ בתשרי", "hebrewYear": "תש", "donor": ""}, {"id": "csv_141", "name": "מרים", "parentName": "עזריה לוי ע\"ה", "gender": "f", "hebrewDay": 1, "hebrewMonth": 7, "hebrewDateStr": "א׳ בתשרי", "hebrewYear": "תש", "donor": ""}, {"id": "csv_142", "name": "אליהו", "parentName": "בנימין ז\"ל", "gender": "m", "hebrewDay": 1, "hebrewMonth": 7, "hebrewDateStr": "א׳ בתשרי", "hebrewYear": "תש", "donor": ""}, {"id": "csv_143", "name": "ישראל", "parentName": "בנימין ז\"ל", "gender": "m", "hebrewDay": 1, "hebrewMonth": 7, "hebrewDateStr": "א׳ בתשרי", "hebrewYear": "תש", "donor": ""}, {"id": "csv_144", "name": "רבקה שניאור", "parentName": "יעקב ולאה ז\"ל", "gender": "f", "hebrewDay": 6, "hebrewMonth": 1, "hebrewDateStr": "ו׳ בניסן", "hebrewYear": "תשס\"ד", "donor": ""}, {"id": "csv_145", "name": "תמר ביטון", "parentName": "עליזה ומרדכי ז\"ל", "gender": "f", "hebrewDay": 26, "hebrewMonth": 8, "hebrewDateStr": "כ״ו בחשוון", "hebrewYear": "תשס\"ח", "donor": ""}, {"id": "csv_146", "name": "מסעוד אבו", "parentName": "רחל ז\"ל", "gender": "m", "hebrewDay": 1, "hebrewMonth": 4, "hebrewDateStr": "א׳ בתמוז", "hebrewYear": "תשכ\"ו", "donor": ""}, {"id": "csv_147", "name": "אליהו יחזקאל נוואמה", "parentName": "מיתנה ז\"ל", "gender": "m", "hebrewDay": 27, "hebrewMonth": 11, "hebrewDateStr": "כ״ז בשבט", "hebrewYear": "תשמ\"ז", "donor": ""}, {"id": "csv_148", "name": "מזל אזולאי", "parentName": "אסתר ז\"ל", "gender": "f", "hebrewDay": 17, "hebrewMonth": 13, "hebrewDateStr": "י״ז באדר ב׳", "hebrewYear": "תשמ\"ו", "donor": ""}, {"id": "csv_149", "name": "סולטנה שם-טוב ז\"ל", "parentName": "מסעודה ורחמים", "gender": "f", "hebrewDay": 20, "hebrewMonth": 1, "hebrewDateStr": "כ׳ בניסן", "hebrewYear": "תשס\"ז", "donor": ""}, {"id": "csv_150", "name": "דוד עמר", "parentName": "מכלוף ואסתר ז\"ל", "gender": "m", "hebrewDay": 29, "hebrewMonth": 10, "hebrewDateStr": "כ״ט בטבת", "hebrewYear": "תשס\"ד", "donor": ""}, {"id": "csv_151", "name": "נחמיה כהן", "parentName": "בת שבע ז\"ל", "gender": "m", "hebrewDay": 13, "hebrewMonth": 4, "hebrewDateStr": "י״ג בתמוז", "hebrewYear": "תש\"י", "donor": ""}, {"id": "csv_152", "name": "רחל (ביבי) שילה", "parentName": "יצחק ורוזה ביבי ז\"ל", "gender": "f", "hebrewDay": 14, "hebrewMonth": 3, "hebrewDateStr": "י״ד בסיוון", "hebrewYear": "תשס\"ד", "donor": ""}, {"id": "csv_153", "name": "אברהם ביטון", "parentName": "עליזה ויוסף ז\"ל", "gender": "m", "hebrewDay": 17, "hebrewMonth": 7, "hebrewDateStr": "י״ז בתשרי", "hebrewYear": "תשמ\"ז", "donor": ""}, {"id": "csv_154", "name": "שלמה", "parentName": "שמואל ושיינה רוזנבום ז\"ל", "gender": "m", "hebrewDay": 26, "hebrewMonth": 6, "hebrewDateStr": "כ״ו באלול", "hebrewYear": "תשמ\"ג", "donor": ""}, {"id": "csv_155", "name": "בועז", "parentName": "יפה מזר ז\"ל", "gender": "m", "hebrewDay": 9, "hebrewMonth": 7, "hebrewDateStr": "ט׳ בתשרי", "hebrewYear": "תשמ\"ז", "donor": ""}, {"id": "csv_156", "name": "רחל כהן", "parentName": "שרה ז\"ל", "gender": "f", "hebrewDay": 14, "hebrewMonth": 7, "hebrewDateStr": "י״ד בתשרי", "hebrewYear": "תשמ\"ב", "donor": ""}, {"id": "csv_157", "name": "יצחק רפאל", "parentName": "כסנו ז\"ל", "gender": "m", "hebrewDay": 18, "hebrewMonth": 8, "hebrewDateStr": "י״ח בחשוון", "hebrewYear": "תשמ\"ו", "donor": ""}, {"id": "csv_158", "name": "זכיה כהן", "parentName": "סוניה ז\"ל", "gender": "f", "hebrewDay": 29, "hebrewMonth": 3, "hebrewDateStr": "כ״ט בסיוון", "hebrewYear": "תשי\"ט", "donor": ""}, {"id": "csv_159", "name": "יעקב חזן", "parentName": "חנה ז\"ל", "gender": "m", "hebrewDay": 16, "hebrewMonth": 12, "hebrewDateStr": "ט״ז באדר", "hebrewYear": "תש\"ה", "donor": ""}, {"id": "csv_160", "name": "אורה חן (חיון)", "parentName": "רבקה ז\"ל", "gender": "f", "hebrewDay": 7, "hebrewMonth": 5, "hebrewDateStr": "ז׳ באב", "hebrewYear": "תשמ\"ו", "donor": ""}, {"id": "csv_161", "name": "מרים רבקה הירשהורן ז\"ל", "parentName": "ר' מנחם מענדל קפלוביץ ז\"ל", "gender": "f", "hebrewDay": 13, "hebrewMonth": 12, "hebrewDateStr": "י״ג באדר", "hebrewYear": "תשמ\"ה", "donor": ""}, {"id": "csv_162", "name": "יעקב כהן", "parentName": "פרידה ז\"ל", "gender": "m", "hebrewDay": 10, "hebrewMonth": 11, "hebrewDateStr": "י׳ בשבט", "hebrewYear": "תשס\"ו", "donor": ""}, {"id": "csv_163", "name": "רחמים שם-טוב מזרחי", "parentName": "עזיזה ז\"ל", "gender": "m", "hebrewDay": 6, "hebrewMonth": 8, "hebrewDateStr": "ו׳ בחשוון", "hebrewYear": "תשמ\"ה", "donor": ""}, {"id": "csv_164", "name": "אליהו ברהום", "parentName": "פרחה ורחמים", "gender": "m", "hebrewDay": 9, "hebrewMonth": 12, "hebrewDateStr": "ט׳ באדר", "hebrewYear": "תשי\"ח", "donor": ""}, {"id": "csv_165", "name": "צ'חלה ברהום", "parentName": "תיפחה ואליה", "gender": "f", "hebrewDay": 3, "hebrewMonth": 11, "hebrewDateStr": "ג׳ בשבט", "hebrewYear": "תשמ\"ד", "donor": ""}, {"id": "csv_166", "name": "עזרא כהן", "parentName": "לילא ז\"ל", "gender": "m", "hebrewDay": 24, "hebrewMonth": 2, "hebrewDateStr": "כ״ד באייר", "hebrewYear": "תשכ\"ה", "donor": ""}, {"id": "csv_167", "name": "שמחה חזן", "parentName": "בת שבע ז\"ל", "gender": "f", "hebrewDay": 29, "hebrewMonth": 12, "hebrewDateStr": "כ״ט באדר", "hebrewYear": "תשי\"ח", "donor": ""}, {"id": "csv_168", "name": "חנה עיישה", "parentName": "נעמי ז\"ל", "gender": "f", "hebrewDay": 9, "hebrewMonth": 5, "hebrewDateStr": "ט׳ באב", "hebrewYear": "תש\"ן", "donor": ""}, {"id": "csv_169", "name": "דניאל שריר (זרירי) ז\"ל", "parentName": "יצחק וכוכבא", "gender": "m", "hebrewDay": 26, "hebrewMonth": 9, "hebrewDateStr": "כ״ו בכסלו", "hebrewYear": "תשנ\"א", "donor": ""}, {"id": "csv_170", "name": "יורם (יז'י) מיזלס", "parentName": "חיה ז\"ל", "gender": "m", "hebrewDay": 18, "hebrewMonth": 12, "hebrewDateStr": "י״ח באדר", "hebrewYear": "תשנ\"א", "donor": ""}, {"id": "csv_171", "name": "שולמית", "parentName": "חוה ז\"ל", "gender": "f", "hebrewDay": 1, "hebrewMonth": 7, "hebrewDateStr": "א׳ בתשרי", "hebrewYear": "תש", "donor": ""}, {"id": "csv_172", "name": "יעקב", "parentName": "אברהם ואסתר חזות ז\"ל", "gender": "m", "hebrewDay": 17, "hebrewMonth": 10, "hebrewDateStr": "י״ז בטבת", "hebrewYear": "תשנ\"ט", "donor": ""}, {"id": "csv_173", "name": "רבי מאיר בן חמו", "parentName": "עליה ז\"ל", "gender": "m", "hebrewDay": 13, "hebrewMonth": 2, "hebrewDateStr": "י״ג באייר", "hebrewYear": "תשל\"ט", "donor": ""}, {"id": "csv_174", "name": "מזל כהן", "parentName": "מרים ויעקב ז\"ל", "gender": "f", "hebrewDay": 29, "hebrewMonth": 7, "hebrewDateStr": "כ״ט בתשרי", "hebrewYear": "תשנ\"ח", "donor": ""}, {"id": "csv_175", "name": "אסתר שלומי", "parentName": "מזל ע\"ה", "gender": "f", "hebrewDay": 27, "hebrewMonth": 7, "hebrewDateStr": "כ״ז בתשרי", "hebrewYear": "תשס\"ה", "donor": ""}, {"id": "csv_176", "name": "משה כהן", "parentName": "ביה ואברהם ז\"ל", "gender": "m", "hebrewDay": 4, "hebrewMonth": 7, "hebrewDateStr": "ד׳ בתשרי", "hebrewYear": "תשנ\"ד", "donor": ""}, {"id": "csv_177", "name": "משה כהן", "parentName": "ביה ואברהם ז\"ל", "gender": "m", "hebrewDay": 4, "hebrewMonth": 7, "hebrewDateStr": "ד׳ בתשרי", "hebrewYear": "תשנ\"ד", "donor": ""}, {"id": "csv_178", "name": "אברהם דהאן", "parentName": "אסתר ושלום ז\"ל", "gender": "m", "hebrewDay": 11, "hebrewMonth": 12, "hebrewDateStr": "י״א באדר", "hebrewYear": "תשל\"ז", "donor": ""}, {"id": "csv_179", "name": "איטה", "parentName": "צפורה ז\"ל", "gender": "f", "hebrewDay": 23, "hebrewMonth": 1, "hebrewDateStr": "כ״ג בניסן", "hebrewYear": "תשנ\"ב", "donor": ""}, {"id": "csv_180", "name": "יעקב", "parentName": "בת שבע הכהן ז\"ל", "gender": "m", "hebrewDay": 3, "hebrewMonth": 6, "hebrewDateStr": "ג׳ באלול", "hebrewYear": "תשכ\"ח", "donor": ""}, {"id": "csv_181", "name": "יצחק ביבי", "parentName": "יוסף וחילווה ז\"ל", "gender": "m", "hebrewDay": 27, "hebrewMonth": 11, "hebrewDateStr": "כ״ז בשבט", "hebrewYear": "תשס\"ג", "donor": ""}, {"id": "csv_182", "name": "רוזה ביבי", "parentName": "שבתאי ולולו לוי ז\"ל", "gender": "f", "hebrewDay": 8, "hebrewMonth": 12, "hebrewDateStr": "ח׳ באדר", "hebrewYear": "תשס\"ה", "donor": ""}, {"id": "csv_183", "name": "יעקב לוי", "parentName": "שרח ז\"ל", "gender": "m", "hebrewDay": 29, "hebrewMonth": 4, "hebrewDateStr": "כ״ט בתמוז", "hebrewYear": "תשנ\"ד", "donor": ""}, {"id": "csv_184", "name": "דבורה דוסט", "parentName": "חנה ז\"ל", "gender": "f", "hebrewDay": 29, "hebrewMonth": 10, "hebrewDateStr": "כ״ט בטבת", "hebrewYear": "תשנ\"ה", "donor": ""}, {"id": "csv_185", "name": "ויקטוריה בן-חור", "parentName": "קדון ז\"ל", "gender": "f", "hebrewDay": 17, "hebrewMonth": 1, "hebrewDateStr": "י״ז בניסן", "hebrewYear": "תשל\"ט", "donor": ""}, {"id": "csv_186", "name": "אברהם", "parentName": "אסתר וציון כהן ז\"ל", "gender": "m", "hebrewDay": 19, "hebrewMonth": 7, "hebrewDateStr": "י״ט בתשרי", "hebrewYear": "תשנ\"ג", "donor": ""}, {"id": "csv_187", "name": "עזריה דוסט", "parentName": "נרג'אן ז\"ל", "gender": "m", "hebrewDay": 19, "hebrewMonth": 10, "hebrewDateStr": "י״ט בטבת", "hebrewYear": "תשל\"ב", "donor": ""}, {"id": "csv_188", "name": "לבנה בונג'ק", "parentName": "טובה ויצחק כהן ז\"ל", "gender": "f", "hebrewDay": 1, "hebrewMonth": 10, "hebrewDateStr": "א׳ בטבת", "hebrewYear": "תשמ\"ג", "donor": ""}, {"id": "csv_189", "name": "בבאי הלה", "parentName": "ג'חלה ז\"ל", "gender": "f", "hebrewDay": 18, "hebrewMonth": 10, "hebrewDateStr": "י״ח בטבת", "hebrewYear": "תשמ\"א", "donor": ""}, {"id": "csv_190", "name": "בבאי אברהם", "parentName": "שמחה ז\"ל", "gender": "m", "hebrewDay": 5, "hebrewMonth": 8, "hebrewDateStr": "ה׳ בחשוון", "hebrewYear": "תש\"ן", "donor": ""}, {"id": "csv_191", "name": "שלמה שושני", "parentName": "חנה ז\"ל", "gender": "m", "hebrewDay": 13, "hebrewMonth": 9, "hebrewDateStr": "י״ג בכסלו", "hebrewYear": "תשנ\"א", "donor": ""}, {"id": "csv_192", "name": "יצחק", "parentName": "סרח ז\"ל", "gender": "m", "hebrewDay": 1, "hebrewMonth": 2, "hebrewDateStr": "א׳ באייר", "hebrewYear": "תשע\"ג", "donor": ""}, {"id": "csv_193", "name": "אילנה לוי", "parentName": "הלה ז\"ל", "gender": "f", "hebrewDay": 19, "hebrewMonth": 10, "hebrewDateStr": "י״ט בטבת", "hebrewYear": "תשנ\"ד", "donor": ""}, {"id": "csv_194", "name": "חנה שושני", "parentName": "לאה ז\"ל", "gender": "f", "hebrewDay": 22, "hebrewMonth": 11, "hebrewDateStr": "כ״ב בשבט", "hebrewYear": "תשנ\"ב", "donor": ""}, {"id": "csv_195", "name": "הרב זרובבל שושני", "parentName": "בת שבע ז\"ל", "gender": "m", "hebrewDay": 22, "hebrewMonth": 2, "hebrewDateStr": "כ״ב באייר", "hebrewYear": "תש\"ל", "donor": ""}, {"id": "csv_196", "name": "יהודית מיזבינסקי", "parentName": "דונה ז\"ל", "gender": "f", "hebrewDay": 24, "hebrewMonth": 4, "hebrewDateStr": "כ״ד בתמוז", "hebrewYear": "תשנ\"א", "donor": ""}, {"id": "csv_197", "name": "יוסף יוסף", "parentName": "חנה ז\"ל", "gender": "m", "hebrewDay": 22, "hebrewMonth": 6, "hebrewDateStr": "כ״ב באלול", "hebrewYear": "תשל\"ו", "donor": ""}, {"id": "csv_198", "name": "דינה יוסף", "parentName": "סמדה ז\"ל", "gender": "f", "hebrewDay": 25, "hebrewMonth": 2, "hebrewDateStr": "כ״ה באייר", "hebrewYear": "תשנ\"א", "donor": ""}, {"id": "csv_199", "name": "יעקב נורי", "parentName": "רחל ז\"ל", "gender": "m", "hebrewDay": 7, "hebrewMonth": 10, "hebrewDateStr": "ז׳ בטבת", "hebrewYear": "תשנ\"ד", "donor": ""}, {"id": "csv_200", "name": "משה נורי", "parentName": "רחל ז\"ל", "gender": "m", "hebrewDay": 13, "hebrewMonth": 2, "hebrewDateStr": "י״ג באייר", "hebrewYear": "תשי\"א", "donor": ""}, {"id": "csv_201", "name": "טובה ליבה", "parentName": "בילהה ז\"ל", "gender": "f", "hebrewDay": 3, "hebrewMonth": 12, "hebrewDateStr": "ג׳ באדר", "hebrewYear": "תשנ\"ה", "donor": ""}, {"id": "csv_202", "name": "רחל נורי", "parentName": "חנה ז\"ל", "gender": "f", "hebrewDay": 7, "hebrewMonth": 9, "hebrewDateStr": "ז׳ בכסלו", "hebrewYear": "תשל\"ו", "donor": ""}, {"id": "csv_203", "name": "יוסף נסים הכהן ז\"ל", "parentName": "ר' יעקב ושמחה ז\"ל", "gender": "m", "hebrewDay": 29, "hebrewMonth": 2, "hebrewDateStr": "כ״ט באייר", "hebrewYear": "תשנ\"ב", "donor": ""}, {"id": "csv_204", "name": "אורי וייס", "parentName": "דליה ז\"ל", "gender": "m", "hebrewDay": 27, "hebrewMonth": 1, "hebrewDateStr": "כ״ז בניסן", "hebrewYear": "תשנ\"ה", "donor": ""}, {"id": "csv_205", "name": "ר' שמחה כהן", "parentName": "אסתר ז\"ל", "gender": "m", "hebrewDay": 9, "hebrewMonth": 7, "hebrewDateStr": "ט׳ בתשרי", "hebrewYear": "תשנ\"ד", "donor": ""}, {"id": "csv_206", "name": "דוד בונג'ק", "parentName": "טובה ועזרא ז\"ל", "gender": "m", "hebrewDay": 7, "hebrewMonth": 6, "hebrewDateStr": "ז׳ באלול", "hebrewYear": "תשמ\"ט", "donor": ""}, {"id": "csv_207", "name": "רחל כהן", "parentName": "גרסיה ז\"ל", "gender": "f", "hebrewDay": 13, "hebrewMonth": 9, "hebrewDateStr": "י״ג בכסלו", "hebrewYear": "תשנ\"ב", "donor": ""}, {"id": "csv_208", "name": "הינדה (הרטה) סולומון", "parentName": "אברהם ואיטה", "gender": "f", "hebrewDay": 17, "hebrewMonth": 10, "hebrewDateStr": "י״ז בטבת", "hebrewYear": "תשנ\"ד", "donor": ""}, {"id": "csv_209", "name": "חיים בן-חור", "parentName": "רחל ז\"ל", "gender": "m", "hebrewDay": 30, "hebrewMonth": 1, "hebrewDateStr": "ל׳ בניסן", "hebrewYear": "תשנ\"ה", "donor": ""}, {"id": "csv_210", "name": "משה כהן", "parentName": "וידה מלכה ז\"ל", "gender": "m", "hebrewDay": 21, "hebrewMonth": 12, "hebrewDateStr": "כ״א באדר", "hebrewYear": "תש\"ן", "donor": ""}, {"id": "csv_211", "name": "יוסף", "parentName": "דימנטה ויהודה דנון ז\"ל", "gender": "m", "hebrewDay": 29, "hebrewMonth": 1, "hebrewDateStr": "כ״ט בניסן", "hebrewYear": "תשנ\"ג", "donor": ""}, {"id": "csv_212", "name": "מנשה", "parentName": "ג'חלה ואליהו ברהום ז\"ל", "gender": "m", "hebrewDay": 10, "hebrewMonth": 10, "hebrewDateStr": "י׳ בטבת", "hebrewYear": "תשנ\"ב", "donor": ""}, {"id": "csv_213", "name": "עזיזה שם-טוב", "parentName": "יצחק ז\"ל", "gender": "f", "hebrewDay": 25, "hebrewMonth": 7, "hebrewDateStr": "כ״ה בתשרי", "hebrewYear": "תשכ\"א", "donor": ""}, {"id": "csv_214", "name": "אפרים שם-טוב", "parentName": "אביגיל ז\"ל", "gender": "m", "hebrewDay": 1, "hebrewMonth": 11, "hebrewDateStr": "א׳ בשבט", "hebrewYear": "תרפ\"ג", "donor": ""}, {"id": "csv_215", "name": "יוסף לפידות", "parentName": "אברהם ז\"ל", "gender": "m", "hebrewDay": 25, "hebrewMonth": 1, "hebrewDateStr": "כ״ה בניסן", "hebrewYear": "תשנ\"ו", "donor": ""}, {"id": "csv_216", "name": "שמחה חלימי", "parentName": "טובה ז\"ל", "gender": "f", "hebrewDay": 24, "hebrewMonth": 3, "hebrewDateStr": "כ״ד בסיוון", "hebrewYear": "תשנ\"א", "donor": ""}, {"id": "csv_217", "name": "שלמה קרן", "parentName": "שורה וחנוך ז\"ל", "gender": "m", "hebrewDay": 24, "hebrewMonth": 6, "hebrewDateStr": "כ״ד באלול", "hebrewYear": "תשנ\"א", "donor": ""}, {"id": "csv_218", "name": "ועלבת דונה ז\"ל", "parentName": "חוה", "gender": "f", "hebrewDay": 27, "hebrewMonth": 8, "hebrewDateStr": "כ״ז בחשוון", "hebrewYear": "תשנ\"ד", "donor": ""}, {"id": "csv_219", "name": "יעקב ברהום", "parentName": "ג'חלה ז\"ל", "gender": "m", "hebrewDay": 13, "hebrewMonth": 8, "hebrewDateStr": "י״ג בחשוון", "hebrewYear": "תשנ\"א", "donor": ""}, {"id": "csv_220", "name": "שלום ביבי", "parentName": "יוסף ויפה ז\"ל", "gender": "m", "hebrewDay": 26, "hebrewMonth": 3, "hebrewDateStr": "כ״ו בסיוון", "hebrewYear": "תשס\"ד", "donor": ""}, {"id": "csv_221", "name": "מיכאל חזות", "parentName": "מרים ואברהם ז\"ל", "gender": "m", "hebrewDay": 4, "hebrewMonth": 1, "hebrewDateStr": "ד׳ בניסן", "hebrewYear": "תשס\"ו", "donor": ""}, {"id": "csv_222", "name": "ראובן נוה", "parentName": "טובה ז\"ל", "gender": "m", "hebrewDay": 9, "hebrewMonth": 11, "hebrewDateStr": "ט׳ בשבט", "hebrewYear": "תשנ\"ז", "donor": ""}, {"id": "csv_223", "name": "שושנה (רוזה) שחר ז\"ל", "parentName": "חוה", "gender": "f", "hebrewDay": 18, "hebrewMonth": 6, "hebrewDateStr": "י״ח באלול", "hebrewYear": "תשל\"ט", "donor": ""}, {"id": "csv_224", "name": "יצחק שחר ז\"ל", "parentName": "אברהם", "gender": "m", "hebrewDay": 8, "hebrewMonth": 12, "hebrewDateStr": "ח׳ באדר", "hebrewYear": "תש\"ן", "donor": ""}, {"id": "csv_225", "name": "יצחק מרצ'י", "parentName": "רבקה ז\"ל", "gender": "m", "hebrewDay": 4, "hebrewMonth": 11, "hebrewDateStr": "ד׳ בשבט", "hebrewYear": "תשמ\"ב", "donor": ""}, {"id": "csv_226", "name": "יונתן הכהן", "parentName": "מזל ז\"ל", "gender": "m", "hebrewDay": 19, "hebrewMonth": 7, "hebrewDateStr": "י״ט בתשרי", "hebrewYear": "תש\"ז", "donor": ""}, {"id": "csv_227", "name": "שלי (מאירה) קוסר ז\"ל", "parentName": "שמחה ז\"ל ויחיאל", "gender": "f", "hebrewDay": 20, "hebrewMonth": 8, "hebrewDateStr": "כ׳ בחשוון", "hebrewYear": "תש\"ס", "donor": ""}, {"id": "csv_228", "name": "רבקה בראו ז\"ל", "parentName": "מזל ובן ציון נחמן", "gender": "f", "hebrewDay": 1, "hebrewMonth": 3, "hebrewDateStr": "א׳ בסיוון", "hebrewYear": "תשנ\"ט", "donor": ""}, {"id": "csv_229", "name": "סימן טוב לוי", "parentName": "אסתר ז\"ל", "gender": "m", "hebrewDay": 13, "hebrewMonth": 10, "hebrewDateStr": "י״ג בטבת", "hebrewYear": "תש\"ח", "donor": ""}, {"id": "csv_230", "name": "מזל", "parentName": "חנה לוי ז\"ל", "gender": "f", "hebrewDay": 17, "hebrewMonth": 10, "hebrewDateStr": "י״ז בטבת", "hebrewYear": "תשמ\"ג", "donor": ""}, {"id": "csv_231", "name": "זהבה כהן", "parentName": "רוזה ז\"ל", "gender": "f", "hebrewDay": 15, "hebrewMonth": 5, "hebrewDateStr": "ט״ו באב", "hebrewYear": "תשנ\"ז", "donor": ""}, {"id": "csv_232", "name": "זהבה כהן", "parentName": "רוזה ז\"ל", "gender": "f", "hebrewDay": 15, "hebrewMonth": 5, "hebrewDateStr": "ט״ו באב", "hebrewYear": "תשנ\"ז", "donor": ""}, {"id": "csv_233", "name": "שבתאי מאיו", "parentName": "רחל ז\"ל", "gender": "m", "hebrewDay": 20, "hebrewMonth": 11, "hebrewDateStr": "כ׳ בשבט", "hebrewYear": "תשנ\"ז", "donor": ""}, {"id": "csv_234", "name": "יונה מאיו", "parentName": "אסתר ז\"ל", "gender": "f", "hebrewDay": 15, "hebrewMonth": 10, "hebrewDateStr": "ט״ו בטבת", "hebrewYear": "תש\"ס", "donor": ""}, {"id": "csv_235", "name": "מנשה נאג'י כליף ז\"ל", "parentName": "אברהם", "gender": "m", "hebrewDay": 16, "hebrewMonth": 10, "hebrewDateStr": "ט״ז בטבת", "hebrewYear": "תשל\"ד", "donor": ""}, {"id": "csv_236", "name": "שמחה שרביט", "parentName": "אסתר ז\"ל", "gender": "f", "hebrewDay": 8, "hebrewMonth": 12, "hebrewDateStr": "ח׳ באדר", "hebrewYear": "תשס\"ו", "donor": ""}, {"id": "csv_237", "name": "צדיק לוי", "parentName": "מרדכי ושמחה ז\"ל", "gender": "m", "hebrewDay": 14, "hebrewMonth": 12, "hebrewDateStr": "י״ד באדר", "hebrewYear": "תש\"ס", "donor": ""}, {"id": "csv_238", "name": "שמחה הכהן", "parentName": "מזל ז\"ל", "gender": "m", "hebrewDay": 5, "hebrewMonth": 11, "hebrewDateStr": "ה׳ בשבט", "hebrewYear": "תשי\"ז", "donor": ""}, {"id": "csv_239", "name": "כלילה", "parentName": "חלווה ז\"ל", "gender": "f", "hebrewDay": 20, "hebrewMonth": 11, "hebrewDateStr": "כ׳ בשבט", "hebrewYear": "תשכ\"ג", "donor": ""}, {"id": "csv_240", "name": "חיה ברזאני", "parentName": "שמחה ז\"ל", "gender": "f", "hebrewDay": 21, "hebrewMonth": 12, "hebrewDateStr": "כ״א באדר", "hebrewYear": "תשנ\"ט", "donor": ""}, {"id": "csv_241", "name": "ר' עזריה ראובנוף ז\"ל", "parentName": "חפצי ואבא חייא ע\"ה", "gender": "m", "hebrewDay": 26, "hebrewMonth": 12, "hebrewDateStr": "כ״ו באדר", "hebrewYear": "תשל\"ו", "donor": ""}, {"id": "csv_242", "name": "יפה ראובנוף ז\"ל", "parentName": "בלור ע\"ה", "gender": "f", "hebrewDay": 20, "hebrewMonth": 11, "hebrewDateStr": "כ׳ בשבט", "hebrewYear": "תשס\"ב", "donor": ""}, {"id": "csv_243", "name": "ג'ולייט", "parentName": "זריפה ז\"ל", "gender": "f", "hebrewDay": 26, "hebrewMonth": 11, "hebrewDateStr": "כ״ו בשבט", "hebrewYear": "תש\"ט", "donor": ""}, {"id": "csv_244", "name": "שמחה", "parentName": "זריפה ז\"ל", "gender": "f", "hebrewDay": 9, "hebrewMonth": 13, "hebrewDateStr": "ט׳ באדר ב׳", "hebrewYear": "תשנ\"ב", "donor": ""}, {"id": "csv_245", "name": "יקים", "parentName": "פרלה יעקב בן שושן ז\"ל", "gender": "m", "hebrewDay": 5, "hebrewMonth": 12, "hebrewDateStr": "ה׳ באדר", "hebrewYear": "תשנ\"ו", "donor": ""}, {"id": "csv_246", "name": "אפרים הכהן", "parentName": "מזל ז\"ל", "gender": "m", "hebrewDay": 15, "hebrewMonth": 12, "hebrewDateStr": "ט״ו באדר", "hebrewYear": "תשי\"ז", "donor": ""}, {"id": "csv_247", "name": "יוכבד", "parentName": "מרים ז\"ל", "gender": "f", "hebrewDay": 20, "hebrewMonth": 8, "hebrewDateStr": "כ׳ בחשוון", "hebrewYear": "תשי\"ח", "donor": ""}, {"id": "csv_248", "name": "מאיר", "parentName": "חלווה ז\"ל", "gender": "m", "hebrewDay": 4, "hebrewMonth": 2, "hebrewDateStr": "ד׳ באייר", "hebrewYear": "תשל\"ו", "donor": ""}, {"id": "csv_249", "name": "זריפה", "parentName": "שמחה ז\"ל", "gender": "f", "hebrewDay": 13, "hebrewMonth": 4, "hebrewDateStr": "י״ג בתמוז", "hebrewYear": "תשנ\"ד", "donor": ""}, {"id": "csv_250", "name": "בתיה", "parentName": "מזל ז\"ל", "gender": "f", "hebrewDay": 15, "hebrewMonth": 9, "hebrewDateStr": "ט״ו בכסלו", "hebrewYear": "תשי\"ז", "donor": ""}, {"id": "csv_251", "name": "שלמה", "parentName": "רבקה ז\"ל", "gender": "m", "hebrewDay": 27, "hebrewMonth": 11, "hebrewDateStr": "כ״ז בשבט", "hebrewYear": "תש", "donor": ""}, {"id": "csv_252", "name": "חלווה", "parentName": "רימה ז\"ל", "gender": "f", "hebrewDay": 20, "hebrewMonth": 11, "hebrewDateStr": "כ׳ בשבט", "hebrewYear": "תש\"כ", "donor": ""}, {"id": "csv_253", "name": "מרדכי", "parentName": "שינה ז\"ל", "gender": "m", "hebrewDay": 25, "hebrewMonth": 11, "hebrewDateStr": "כ״ה בשבט", "hebrewYear": "תש\"כ", "donor": ""}, {"id": "csv_254", "name": "שמחה", "parentName": "שינה ז\"ל", "gender": "f", "hebrewDay": 5, "hebrewMonth": 5, "hebrewDateStr": "ה׳ באב", "hebrewYear": "תש", "donor": ""}, {"id": "csv_255", "name": "צדוק סבן", "parentName": "סוזן ז\"ל", "gender": "m", "hebrewDay": 18, "hebrewMonth": 7, "hebrewDateStr": "י״ח בתשרי", "hebrewYear": "תשנ\"ו", "donor": ""}, {"id": "csv_256", "name": "רבקה", "parentName": "חלווה ז\"ל", "gender": "f", "hebrewDay": 17, "hebrewMonth": 4, "hebrewDateStr": "י״ז בתמוז", "hebrewYear": "תש", "donor": ""}, {"id": "csv_257", "name": "כלילה", "parentName": "חלווה ז\"ל", "gender": "f", "hebrewDay": 20, "hebrewMonth": 11, "hebrewDateStr": "כ׳ בשבט", "hebrewYear": "תש\"כ", "donor": ""}, {"id": "csv_258", "name": "שחר מזרחי", "parentName": "דליה ומשה ז\"ל", "gender": "m", "hebrewDay": 12, "hebrewMonth": 6, "hebrewDateStr": "י״ב באלול", "hebrewYear": "תשנ\"ה", "donor": ""}, {"id": "csv_259", "name": "ר' אהרון כהן", "parentName": "לאה זצ\"ל", "gender": "m", "hebrewDay": 22, "hebrewMonth": 8, "hebrewDateStr": "כ״ב בחשוון", "hebrewYear": "תשס\"ה", "donor": ""}, {"id": "csv_260", "name": "יצחק שמואל", "parentName": "אסתר ז\"ל", "gender": "m", "hebrewDay": 20, "hebrewMonth": 12, "hebrewDateStr": "כ׳ באדר", "hebrewYear": "תשנ\"ז", "donor": ""}, {"id": "csv_261", "name": "עזרא (עוזרי) גיל", "parentName": "עזיזה ז\"ל", "gender": "m", "hebrewDay": 1, "hebrewMonth": 2, "hebrewDateStr": "א׳ באייר", "hebrewYear": "תשס\"א", "donor": ""}, {"id": "csv_262", "name": "ציון עטיה", "parentName": "מרים ז\"ל", "gender": "m", "hebrewDay": 19, "hebrewMonth": 4, "hebrewDateStr": "י״ט בתמוז", "hebrewYear": "תשל\"ג", "donor": ""}, {"id": "csv_263", "name": "חנה עטיה", "parentName": "רחל ז\"ל", "gender": "m", "hebrewDay": 26, "hebrewMonth": 5, "hebrewDateStr": "כ״ו באב", "hebrewYear": "תשכ\"א", "donor": ""}, {"id": "csv_264", "name": "מנחם סוריכון", "parentName": "גרסיה ז\"ל", "gender": "m", "hebrewDay": 19, "hebrewMonth": 5, "hebrewDateStr": "י״ט באב", "hebrewYear": "תשס\"א", "donor": ""}, {"id": "csv_265", "name": "אברהם עובדיה", "parentName": "ויקטוריה ז\"ל", "gender": "m", "hebrewDay": 25, "hebrewMonth": 10, "hebrewDateStr": "כ״ה בטבת", "hebrewYear": "תשס\"ב", "donor": ""}, {"id": "csv_266", "name": "מלכה (רג'ינה) קנטי", "parentName": "אסתר ז\"ל", "gender": "f", "hebrewDay": 3, "hebrewMonth": 12, "hebrewDateStr": "ג׳ באדר", "hebrewYear": "תשס\"ב", "donor": ""}, {"id": "csv_267", "name": "עליזה כליף", "parentName": "חוה ז\"ל", "gender": "f", "hebrewDay": 22, "hebrewMonth": 9, "hebrewDateStr": "כ״ב בכסלו", "hebrewYear": "תשנ\"ז", "donor": ""}, {"id": "csv_268", "name": "עליזה כליף", "parentName": "חוה ז\"ל", "gender": "f", "hebrewDay": 22, "hebrewMonth": 9, "hebrewDateStr": "כ״ב בכסלו", "hebrewYear": "תשנ\"ז", "donor": ""}, {"id": "csv_269", "name": "גדעון (גידי) כליף", "parentName": "חוה ז\"ל", "gender": "f", "hebrewDay": 3, "hebrewMonth": 10, "hebrewDateStr": "ג׳ בטבת", "hebrewYear": "תשמ\"ד", "donor": ""}, {"id": "csv_270", "name": "יעקב (ג'ק) קנטי", "parentName": "רחל ז\"ל", "gender": "m", "hebrewDay": 14, "hebrewMonth": 8, "hebrewDateStr": "י״ד בחשוון", "hebrewYear": "תשמ\"ד", "donor": ""}, {"id": "csv_271", "name": "שלום שרביט", "parentName": "סולטנה ז\"ל", "gender": "m", "hebrewDay": 6, "hebrewMonth": 2, "hebrewDateStr": "ו׳ באייר", "hebrewYear": "תשנ\"ט", "donor": ""}, {"id": "csv_272", "name": "דוד דדיה", "parentName": "אסתר ז\"ל", "gender": "m", "hebrewDay": 6, "hebrewMonth": 3, "hebrewDateStr": "ו׳ בסיוון", "hebrewYear": "תשנ\"ט", "donor": ""}, {"id": "csv_273", "name": "מרדכי", "parentName": "כתון ואברהם ז\"ל", "gender": "m", "hebrewDay": 26, "hebrewMonth": 9, "hebrewDateStr": "כ״ו בכסלו", "hebrewYear": "תשמ\"ז", "donor": ""}, {"id": "csv_274", "name": "מרים", "parentName": "גבהר ורחמים ז\"ל", "gender": "f", "hebrewDay": 15, "hebrewMonth": 10, "hebrewDateStr": "ט״ו בטבת", "hebrewYear": "תשמ\"ד", "donor": ""}, {"id": "csv_275", "name": "שלמה שלמהיוף", "parentName": "מיכל ז\"ל", "gender": "m", "hebrewDay": 28, "hebrewMonth": 8, "hebrewDateStr": "כ״ח בחשוון", "hebrewYear": "תשמ\"ג", "donor": ""}, {"id": "csv_276", "name": "פרידה שלמהיוף", "parentName": "שרה ז\"ל", "gender": "f", "hebrewDay": 11, "hebrewMonth": 9, "hebrewDateStr": "י״א בכסלו", "hebrewYear": "תשמ\"ה", "donor": ""}, {"id": "csv_277", "name": "פרידה שלמהיוף", "parentName": "שרה ז\"ל", "gender": "f", "hebrewDay": 11, "hebrewMonth": 9, "hebrewDateStr": "י״א בכסלו", "hebrewYear": "תשמ\"ה", "donor": ""}, {"id": "csv_278", "name": "חנה מולקנדוף", "parentName": "דבורה ז\"ל", "gender": "f", "hebrewDay": 4, "hebrewMonth": 11, "hebrewDateStr": "ד׳ בשבט", "hebrewYear": "תשי\"ט", "donor": ""}, {"id": "csv_279", "name": "שושנה מולקנדוף", "parentName": "חנה ז\"ל", "gender": "f", "hebrewDay": 18, "hebrewMonth": 10, "hebrewDateStr": "י״ח בטבת", "hebrewYear": "תשכ\"ו", "donor": ""}, {"id": "csv_280", "name": "יוחנן הכהן", "parentName": "מזל ז\"ל", "gender": "m", "hebrewDay": 6, "hebrewMonth": 12, "hebrewDateStr": "ו׳ באדר", "hebrewYear": "תרנ\"א", "donor": ""}, {"id": "csv_281", "name": "דבורה", "parentName": "מזל ז\"ל", "gender": "f", "hebrewDay": 6, "hebrewMonth": 12, "hebrewDateStr": "ו׳ באדר", "hebrewYear": "תרפ\"ח", "donor": ""}, {"id": "csv_282", "name": "ר' אבא חייא ראובנוף ז\"ף", "parentName": "רחל ז\"ל", "gender": "m", "hebrewDay": 29, "hebrewMonth": 11, "hebrewDateStr": "כ״ט בשבט", "hebrewYear": "תש\"ט", "donor": ""}, {"id": "csv_283", "name": "חפצי ראובנוף", "parentName": "לאה ז\"ל", "gender": "f", "hebrewDay": 23, "hebrewMonth": 8, "hebrewDateStr": "כ״ג בחשוון", "hebrewYear": "תשכ\"ג", "donor": ""}, {"id": "csv_284", "name": "חננאל הכהן מולקנדוף", "parentName": "חנה ז\"ל", "gender": "m", "hebrewDay": 17, "hebrewMonth": 2, "hebrewDateStr": "י״ז באייר", "hebrewYear": "ת\"ש", "donor": ""}, {"id": "csv_285", "name": "עוזיאל הכהן מולקנדוף", "parentName": "חנה ז\"ל", "gender": "m", "hebrewDay": 23, "hebrewMonth": 5, "hebrewDateStr": "כ״ג באב", "hebrewYear": "תשמ\"ד", "donor": ""}, {"id": "csv_286", "name": "משה הכהן", "parentName": "קנדין כלאן ז\"ל", "gender": "m", "hebrewDay": 16, "hebrewMonth": 3, "hebrewDateStr": "ט״ז בסיוון", "hebrewYear": "תש\"ב", "donor": ""}, {"id": "csv_287", "name": "מזל", "parentName": "שסה ז\"ל", "gender": "f", "hebrewDay": 15, "hebrewMonth": 11, "hebrewDateStr": "ט״ו בשבט", "hebrewYear": "תש", "donor": ""}, {"id": "csv_288", "name": "שרה אהרונוף", "parentName": "חפצי ז\"ל", "gender": "f", "hebrewDay": 21, "hebrewMonth": 7, "hebrewDateStr": "כ״א בתשרי", "hebrewYear": "תשל\"ב", "donor": ""}, {"id": "csv_289", "name": "שרח", "parentName": "שרה ז\"ל", "gender": "f", "hebrewDay": 3, "hebrewMonth": 7, "hebrewDateStr": "ג׳ בתשרי", "hebrewYear": "תרס\"ו", "donor": ""}, {"id": "csv_290", "name": "שמחה מרצ'י", "parentName": "לבנה ז\"ל", "gender": "f", "hebrewDay": 11, "hebrewMonth": 1, "hebrewDateStr": "י״א בניסן", "hebrewYear": "תשנ\"ו", "donor": ""}, {"id": "csv_291", "name": "אברהם שריקי", "parentName": "שרה ז\"ל", "gender": "m", "hebrewDay": 3, "hebrewMonth": 10, "hebrewDateStr": "ג׳ בטבת", "hebrewYear": "תשנ\"ט", "donor": ""}, {"id": "csv_292", "name": "ניקול שמחה ז\"ל וויזר", "parentName": "רחל", "gender": "f", "hebrewDay": 4, "hebrewMonth": 3, "hebrewDateStr": "ד׳ בסיוון", "hebrewYear": "תשנ\"ח", "donor": ""}, {"id": "csv_293", "name": "יצחק סגל", "parentName": "יפה שיינדל ז\"ל", "gender": "m", "hebrewDay": 10, "hebrewMonth": 11, "hebrewDateStr": "י׳ בשבט", "hebrewYear": "תשס\"ג", "donor": ""}, {"id": "csv_294", "name": "גל מולקנדוף ז\"ל", "parentName": "נילי ודוד", "gender": "m", "hebrewDay": 21, "hebrewMonth": 9, "hebrewDateStr": "כ״א בכסלו", "hebrewYear": "תשל\"ו", "donor": ""}, {"id": "csv_295", "name": "סלחה מזרחי", "parentName": "אסתר ז\"ל", "gender": "f", "hebrewDay": 3, "hebrewMonth": 9, "hebrewDateStr": "ג׳ בכסלו", "hebrewYear": "תש\"ס", "donor": ""}, {"id": "csv_296", "name": "מישל ביג'יו ז\"ל", "parentName": "רחל", "gender": "m", "hebrewDay": 16, "hebrewMonth": 5, "hebrewDateStr": "ט״ז באב", "hebrewYear": "תשל\"ט", "donor": ""}, {"id": "csv_297", "name": "נחום", "parentName": "אסתר ז\"ל", "gender": "m", "hebrewDay": 20, "hebrewMonth": 2, "hebrewDateStr": "כ׳ באייר", "hebrewYear": "תשל\"ה", "donor": ""}, {"id": "csv_298", "name": "אסתר מזרחי-ביג'יו ז\"ל", "parentName": "גמילה", "gender": "f", "hebrewDay": 5, "hebrewMonth": 13, "hebrewDateStr": "ה׳ באדר ב׳", "hebrewYear": "תש\"ס", "donor": ""}, {"id": "csv_299", "name": "אסתר כהם ז\"ל", "parentName": "צביה ודוד מזרחי ז\"ל", "gender": "f", "hebrewDay": 25, "hebrewMonth": 7, "hebrewDateStr": "כ״ה בתשרי", "hebrewYear": "תשס\"ג", "donor": ""}, {"id": "csv_300", "name": "מרים מזרחי", "parentName": "רחל ז\"ל", "gender": "f", "hebrewDay": 25, "hebrewMonth": 12, "hebrewDateStr": "כ״ה באדר", "hebrewYear": "תשנ\"ז", "donor": ""}, {"id": "csv_301", "name": "רחל מזרחי", "parentName": "חנה ז\"ל", "gender": "f", "hebrewDay": 1, "hebrewMonth": 6, "hebrewDateStr": "א׳ באלול", "hebrewYear": "תשס\"ג", "donor": ""}, {"id": "csv_302", "name": "מזל מזרחי", "parentName": "עמומה ז\"ל", "gender": "f", "hebrewDay": 2, "hebrewMonth": 8, "hebrewDateStr": "ב׳ בחשוון", "hebrewYear": "תשס\"א", "donor": ""}, {"id": "csv_303", "name": "יחזקאל מזרחי", "parentName": "מזל ז\"ל", "gender": "m", "hebrewDay": 1, "hebrewMonth": 5, "hebrewDateStr": "א׳ באב", "hebrewYear": "תשנ\"ח", "donor": ""}, {"id": "csv_304", "name": "מנשה מזרחי", "parentName": "מרים ז\"ל", "gender": "m", "hebrewDay": 12, "hebrewMonth": 2, "hebrewDateStr": "י״ב באייר", "hebrewYear": "תשי\"ט", "donor": ""}, {"id": "csv_305", "name": "משה", "parentName": "סלחה ודוד ברכה ז\"ל", "gender": "m", "hebrewDay": 12, "hebrewMonth": 9, "hebrewDateStr": "י״ב בכסלו", "hebrewYear": "תשנ\"ו", "donor": ""}, {"id": "csv_306", "name": "מרים כהן (שכר)", "parentName": "אסתר ז\"ל", "gender": "f", "hebrewDay": 15, "hebrewMonth": 7, "hebrewDateStr": "ט״ו בתשרי", "hebrewYear": "תשנ\"ח", "donor": ""}, {"id": "csv_307", "name": "זהבה", "parentName": "וידה ז\"ל", "gender": "f", "hebrewDay": 26, "hebrewMonth": 8, "hebrewDateStr": "כ״ו בחשוון", "hebrewYear": "תשנ\"ז", "donor": ""}, {"id": "csv_308", "name": "אסתר אברהמוף", "parentName": "רוחמה ז\"ל", "gender": "f", "hebrewDay": 17, "hebrewMonth": 11, "hebrewDateStr": "י״ז בשבט", "hebrewYear": "תשנ\"ח", "donor": ""}, {"id": "csv_309", "name": "שלמה", "parentName": "חיים זאב ויאטר ז\"ל", "gender": "m", "hebrewDay": 18, "hebrewMonth": 9, "hebrewDateStr": "י״ח בכסלו", "hebrewYear": "תשמ\"ח", "donor": ""}, {"id": "csv_310", "name": "אסתר רביע ז\"ל", "parentName": "חנה (תופחה) וששון", "gender": "f", "hebrewDay": 24, "hebrewMonth": 2, "hebrewDateStr": "כ״ד באייר", "hebrewYear": "תשס\"ג", "donor": ""}, {"id": "csv_311", "name": "אליהו", "parentName": "מרדכי ז\"ל", "gender": "m", "hebrewDay": 15, "hebrewMonth": 2, "hebrewDateStr": "ט״ו באייר", "hebrewYear": "תש\"ח", "donor": ""}, {"id": "csv_312", "name": "רחל", "parentName": "ישעיה ז\"ל", "gender": "f", "hebrewDay": 4, "hebrewMonth": 9, "hebrewDateStr": "ד׳ בכסלו", "hebrewYear": "תשכ\"ד", "donor": ""}, {"id": "csv_313", "name": "אורי נורי עופר", "parentName": "רחל ז\"ל", "gender": "m", "hebrewDay": 3, "hebrewMonth": 13, "hebrewDateStr": "ג׳ באדר ב׳", "hebrewYear": "תשל\"ו", "donor": ""}, {"id": "csv_314", "name": "שרה נורי", "parentName": "מלכה ז\"ל", "gender": "f", "hebrewDay": 1, "hebrewMonth": 7, "hebrewDateStr": "א׳ בתשרי", "hebrewYear": "תשעו", "donor": ""}, {"id": "csv_315", "name": "שושנה סילס", "parentName": "מלכה ושמעון לוי", "gender": "f", "hebrewDay": 9, "hebrewMonth": 11, "hebrewDateStr": "ט׳ בשבט", "hebrewYear": "תשעז", "donor": ""}, {"id": "csv_316", "name": "יצחק חי", "parentName": "שושנה ז\"ל", "gender": "m", "hebrewDay": 14, "hebrewMonth": 5, "hebrewDateStr": "י״ד באב", "hebrewYear": "תשמ\"ח", "donor": ""}, {"id": "csv_317", "name": "ראובן עמיחי לוי", "parentName": "שרה ז\"ל", "gender": "m", "hebrewDay": 28, "hebrewMonth": 10, "hebrewDateStr": "כ״ח בטבת", "hebrewYear": "תשמ\"ז", "donor": ""}, {"id": "csv_318", "name": "רבי יוסף יצחקי", "parentName": "אסתר ז\"ל", "gender": "m", "hebrewDay": 1, "hebrewMonth": 9, "hebrewDateStr": "א׳ בכסלו", "hebrewYear": "תש\"ל", "donor": ""}, {"id": "csv_319", "name": "שרה יצחקי", "parentName": "אסתר ז\"ל", "gender": "f", "hebrewDay": 23, "hebrewMonth": 10, "hebrewDateStr": "כ״ג בטבת", "hebrewYear": "תשנ\"ד", "donor": ""}, {"id": "csv_320", "name": "לאה מזרחי", "parentName": "מזל ז\"ל", "gender": "f", "hebrewDay": 19, "hebrewMonth": 2, "hebrewDateStr": "י״ט באייר", "hebrewYear": "תשס\"ו", "donor": ""}, {"id": "csv_321", "name": "ר' אלכסנדר", "parentName": "פרלה אסטרוק ז\"ל", "gender": "m", "hebrewDay": 1, "hebrewMonth": 8, "hebrewDateStr": "א׳ בחשוון", "hebrewYear": "תשמ\"ט", "donor": ""}, {"id": "csv_322", "name": "יצחק (אמנון) טוביאנה ז\"ל", "parentName": "יוסף ורחל ז\"ל", "gender": "m", "hebrewDay": 11, "hebrewMonth": 2, "hebrewDateStr": "י״א באייר", "hebrewYear": "תשס\"ה", "donor": ""}, {"id": "csv_323", "name": "יעקב צאלח", "parentName": "פרחה ז\"ל", "gender": "m", "hebrewDay": 9, "hebrewMonth": 2, "hebrewDateStr": "ט׳ באייר", "hebrewYear": "תש\"ן", "donor": ""}, {"id": "csv_324", "name": "זכריה", "parentName": "כוכבא ז\"ל", "gender": "m", "hebrewDay": 13, "hebrewMonth": 10, "hebrewDateStr": "י״ג בטבת", "hebrewYear": "תשנ\"ה", "donor": ""}, {"id": "csv_325", "name": "אדם", "parentName": "מרגלית בן ירושלים ז\"ל", "gender": "m", "hebrewDay": 1, "hebrewMonth": 7, "hebrewDateStr": "א׳ בתשרי", "hebrewYear": "תש", "donor": ""}, {"id": "csv_326", "name": "יצחק הוד", "parentName": "דימנטה מרגלית ז\"ל", "gender": "m", "hebrewDay": 19, "hebrewMonth": 7, "hebrewDateStr": "י״ט בתשרי", "hebrewYear": "תשס\"ח", "donor": ""}, {"id": "csv_327", "name": "אילנה", "parentName": "שולה ז\"ל", "gender": "f", "hebrewDay": 7, "hebrewMonth": 3, "hebrewDateStr": "ז׳ בסיוון", "hebrewYear": "תשמ\"ט", "donor": ""}, {"id": "csv_328", "name": "שרה אלנקוה", "parentName": "מורווריד ז\"ל", "gender": "f", "hebrewDay": 26, "hebrewMonth": 5, "hebrewDateStr": "כ״ו באב", "hebrewYear": "תשמ\"ח", "donor": ""}, {"id": "csv_329", "name": "פנינה", "parentName": "נעמי ז\"ל", "gender": "f", "hebrewDay": 1, "hebrewMonth": 7, "hebrewDateStr": "א׳ בתשרי", "hebrewYear": "תש", "donor": ""}, {"id": "csv_330", "name": "אורי אשרי", "parentName": "מרים ז\"ל", "gender": "m", "hebrewDay": 8, "hebrewMonth": 8, "hebrewDateStr": "ח׳ בחשוון", "hebrewYear": "תשמ\"ט", "donor": ""}, {"id": "csv_331", "name": "איטקה (יהודית)", "parentName": "יעקב ויאטר ז\"ל", "gender": "f", "hebrewDay": 5, "hebrewMonth": 5, "hebrewDateStr": "ה׳ באב", "hebrewYear": "תשמ\"ט", "donor": ""}, {"id": "csv_332", "name": "מלכה סולטנה", "parentName": "טובה יחזקאלי ז\"ל (לבית רביע)", "gender": "f", "hebrewDay": 28, "hebrewMonth": 9, "hebrewDateStr": "כ״ח בכסלו", "hebrewYear": "תשמ\"ח", "donor": ""}, {"id": "csv_333", "name": "ר' יוסף סופר", "parentName": "שמחה ז\"ל", "gender": "m", "hebrewDay": 18, "hebrewMonth": 7, "hebrewDateStr": "י״ח בתשרי", "hebrewYear": "תשמ\"ט", "donor": ""}, {"id": "csv_334", "name": "גיספאן יוסף", "parentName": "יחיאל ז\"ל", "gender": "m", "hebrewDay": 16, "hebrewMonth": 2, "hebrewDateStr": "ט״ז באייר", "hebrewYear": "תשמ\"ד", "donor": ""}, {"id": "csv_335", "name": "שרה", "parentName": "אסתר לבית אוזרקו ז\"ל", "gender": "f", "hebrewDay": 11, "hebrewMonth": 11, "hebrewDateStr": "י״א בשבט", "hebrewYear": "תשמ\"ז", "donor": ""}, {"id": "csv_336", "name": "מאיר", "parentName": "לאה ז\"ל", "gender": "m", "hebrewDay": 10, "hebrewMonth": 10, "hebrewDateStr": "י׳ בטבת", "hebrewYear": "תשמ\"ו", "donor": ""}, {"id": "csv_337", "name": "גיספאן יונה", "parentName": "שרה ז\"ל", "gender": "f", "hebrewDay": 19, "hebrewMonth": 11, "hebrewDateStr": "י״ט בשבט", "hebrewYear": "תשמ\"ד", "donor": ""}, {"id": "csv_338", "name": "יצחק אשר", "parentName": "דב הי\"ד", "gender": "m", "hebrewDay": 5, "hebrewMonth": 4, "hebrewDateStr": "ה׳ בתמוז", "hebrewYear": "תש\"ד", "donor": ""}, {"id": "csv_339", "name": "אריה קורל", "parentName": "רבקה ז\"ל", "gender": "m", "hebrewDay": 29, "hebrewMonth": 8, "hebrewDateStr": "כ״ט בחשוון", "hebrewYear": "תשמ\"ח", "donor": ""}, {"id": "csv_340", "name": "יונה (צ'ונה)", "parentName": "מרים ז\"ל", "gender": "m", "hebrewDay": 21, "hebrewMonth": 11, "hebrewDateStr": "כ״א בשבט", "hebrewYear": "תשמ\"ט", "donor": ""}, {"id": "csv_341", "name": "מרדכי", "parentName": "שרבט ז\"ל", "gender": "m", "hebrewDay": 1, "hebrewMonth": 12, "hebrewDateStr": "א׳ באדר", "hebrewYear": "תרפ\"ז", "donor": ""}, {"id": "csv_342", "name": "פנחס לוי", "parentName": "מזל ז\"ל", "gender": "m", "hebrewDay": 28, "hebrewMonth": 2, "hebrewDateStr": "כ״ח באייר", "hebrewYear": "תשס\"ו", "donor": ""}, {"id": "csv_343", "name": "חוה", "parentName": "יצחק אשר הי\"ד", "gender": "f", "hebrewDay": 8, "hebrewMonth": 4, "hebrewDateStr": "ח׳ בתמוז", "hebrewYear": "תש\"ד", "donor": ""}, {"id": "csv_344", "name": "שרה", "parentName": "יצחק אשר ש\"ל", "gender": "f", "hebrewDay": 4, "hebrewMonth": 6, "hebrewDateStr": "ד׳ באלול", "hebrewYear": "תש\"ב", "donor": ""}, {"id": "csv_345", "name": "אסתר", "parentName": "תמר ז\"ל", "gender": "f", "hebrewDay": 24, "hebrewMonth": 2, "hebrewDateStr": "כ״ד באייר", "hebrewYear": "תש\"ח", "donor": ""}, {"id": "csv_346", "name": "מנשה סאלח", "parentName": "כמרה ז\"ל", "gender": "m", "hebrewDay": 13, "hebrewMonth": 5, "hebrewDateStr": "י״ג באב", "hebrewYear": "תשמ\"ה", "donor": ""}, {"id": "csv_347", "name": "פרחה סאלח", "parentName": "סרח ז\"ל", "gender": "f", "hebrewDay": 5, "hebrewMonth": 12, "hebrewDateStr": "ה׳ באדר", "hebrewYear": "תשמ\"ח", "donor": ""}, {"id": "csv_348", "name": "חיים", "parentName": "יצחק אשר הי\"ד", "gender": "m", "hebrewDay": 8, "hebrewMonth": 4, "hebrewDateStr": "ח׳ בתמוז", "hebrewYear": "תש\"ד", "donor": ""}, {"id": "csv_349", "name": "דב", "parentName": "יצחק אשר הי\"ד", "gender": "m", "hebrewDay": 8, "hebrewMonth": 4, "hebrewDateStr": "ח׳ בתמוז", "hebrewYear": "תש\"ד", "donor": ""}, {"id": "csv_350", "name": "יצחק", "parentName": "יפה ז\"ל", "gender": "m", "hebrewDay": 7, "hebrewMonth": 6, "hebrewDateStr": "ז׳ באלול", "hebrewYear": "תשס\"ד", "donor": ""}, {"id": "csv_351", "name": "רפאל שמש", "parentName": "שרה זצ\"ל", "gender": "m", "hebrewDay": 22, "hebrewMonth": 9, "hebrewDateStr": "כ״ב בכסלו", "hebrewYear": "תשמ\"ז", "donor": ""}, {"id": "csv_352", "name": "ויקטוריה", "parentName": "דינה ז\"ל", "gender": "f", "hebrewDay": 4, "hebrewMonth": 9, "hebrewDateStr": "ד׳ בכסלו", "hebrewYear": "תשס\"ד", "donor": ""}, {"id": "csv_353", "name": "דבורה", "parentName": "יוסף ומרים פרחי ז\"ל", "gender": "f", "hebrewDay": 17, "hebrewMonth": 12, "hebrewDateStr": "י״ז באדר", "hebrewYear": "תשמ\"ח", "donor": ""}, {"id": "csv_354", "name": "מיכאל מכלוף אסרף", "parentName": "מרים ז\"ל", "gender": "m", "hebrewDay": 20, "hebrewMonth": 3, "hebrewDateStr": "כ׳ בסיוון", "hebrewYear": "תשס\"ז", "donor": ""}, {"id": "csv_355", "name": "יאקי (יעקב) אביב", "parentName": "מרגלית ז\"ל", "gender": "m", "hebrewDay": 10, "hebrewMonth": 5, "hebrewDateStr": "י׳ באב", "hebrewYear": "תשס\"ז", "donor": ""}, {"id": "csv_356", "name": "משה שלמה לוי", "parentName": "מתילדה ז\"ל", "gender": "m", "hebrewDay": 8, "hebrewMonth": 3, "hebrewDateStr": "ח׳ בסיוון", "hebrewYear": "תשמ\"ז", "donor": ""}, {"id": "csv_357", "name": "ציון", "parentName": "אסתר ואהרן כהן ז\"ל", "gender": "m", "hebrewDay": 4, "hebrewMonth": 12, "hebrewDateStr": "ד׳ באדר", "hebrewYear": "תשס\"ז", "donor": ""}, {"id": "csv_358", "name": "אליהו יחזקאל", "parentName": "נינה ז\"ל", "gender": "m", "hebrewDay": 5, "hebrewMonth": 13, "hebrewDateStr": "ה׳ באדר ב׳", "hebrewYear": "תשמ\"ט", "donor": ""}, {"id": "csv_359", "name": "חנה (במון)", "parentName": "מרים ברוכים ז\"ל", "gender": "f", "hebrewDay": 17, "hebrewMonth": 11, "hebrewDateStr": "י״ז בשבט", "hebrewYear": "תשמ\"ט", "donor": ""}, {"id": "csv_360", "name": "ר' מאיר", "parentName": "חביבה נחמני ז\"ל", "gender": "m", "hebrewDay": 19, "hebrewMonth": 5, "hebrewDateStr": "י״ט באב", "hebrewYear": "תשנ\"ג", "donor": ""}, {"id": "csv_361", "name": "מרים", "parentName": "עליה נחמני ז\"ל", "gender": "f", "hebrewDay": 15, "hebrewMonth": 12, "hebrewDateStr": "ט״ו באדר", "hebrewYear": "תשס\"ז", "donor": ""}, {"id": "csv_362", "name": "רשל כהן ז\"ל לבית פוליטי", "parentName": "אברהם", "gender": "m", "hebrewDay": 1, "hebrewMonth": 7, "hebrewDateStr": "א׳ בתשרי", "hebrewYear": "תש", "donor": ""}, {"id": "csv_363", "name": "אברהם כהן", "parentName": "יצחק ורשל ז\"ל", "gender": "m", "hebrewDay": 5, "hebrewMonth": 7, "hebrewDateStr": "ה׳ בתשרי", "hebrewYear": "תשמ\"ו", "donor": ""}, {"id": "csv_364", "name": "פרחה זכריה", "parentName": "מסעודה ז\"ל", "gender": "f", "hebrewDay": 11, "hebrewMonth": 5, "hebrewDateStr": "י״א באב", "hebrewYear": "תשנ\"ב", "donor": ""}, {"id": "csv_365", "name": "אפרים אשרי ז\"ל", "parentName": "אברהם", "gender": "m", "hebrewDay": 16, "hebrewMonth": 1, "hebrewDateStr": "ט״ז בניסן", "hebrewYear": "תש\"מ", "donor": ""}, {"id": "csv_366", "name": "הרב אשר אילוז", "parentName": "עישא ז\"ל", "gender": "m", "hebrewDay": 12, "hebrewMonth": 1, "hebrewDateStr": "י״ב בניסן", "hebrewYear": "תשמ\"ג", "donor": ""}, {"id": "csv_367", "name": "משה לוי", "parentName": "מטילדה ז\"ל", "gender": "m", "hebrewDay": 8, "hebrewMonth": 3, "hebrewDateStr": "ח׳ בסיוון", "hebrewYear": "תשמ\"ז", "donor": ""}, {"id": "csv_368", "name": "יוסף", "parentName": "הלה בר-לב ז\"ל", "gender": "m", "hebrewDay": 19, "hebrewMonth": 3, "hebrewDateStr": "י״ט בסיוון", "hebrewYear": "תשמ\"ב", "donor": ""}, {"id": "csv_369", "name": "יחזקאל", "parentName": "עבודי ז\"ל", "gender": "m", "hebrewDay": 5, "hebrewMonth": 11, "hebrewDateStr": "ה׳ בשבט", "hebrewYear": "תשל\"ח", "donor": ""}, {"id": "csv_370", "name": "רחל ארמוזה", "parentName": "לאה ז\"ל", "gender": "f", "hebrewDay": 9, "hebrewMonth": 5, "hebrewDateStr": "ט׳ באב", "hebrewYear": "תש\"א", "donor": ""}, {"id": "csv_371", "name": "אברהם ארמוזה ז\"ל", "parentName": "אדון", "gender": "m", "hebrewDay": 27, "hebrewMonth": 11, "hebrewDateStr": "כ״ז בשבט", "hebrewYear": "תשל\"ז", "donor": ""}, {"id": "csv_372", "name": "מאיר", "parentName": "רחל ז\"ל", "gender": "m", "hebrewDay": 22, "hebrewMonth": 3, "hebrewDateStr": "כ״ב בסיוון", "hebrewYear": "תשל\"ז", "donor": ""}, {"id": "csv_373", "name": "אברהם", "parentName": "חיה מונדני ז\"ל", "gender": "m", "hebrewDay": 1, "hebrewMonth": 12, "hebrewDateStr": "א׳ באדר", "hebrewYear": "תש\"ס", "donor": ""}, {"id": "csv_374", "name": "מרדכי הכהן", "parentName": "חלבייה ז\"ל", "gender": "m", "hebrewDay": 4, "hebrewMonth": 4, "hebrewDateStr": "ד׳ בתמוז", "hebrewYear": "תש\"ע", "donor": ""}, {"id": "csv_375", "name": "אברהם", "parentName": "רחל ומשה כהן ז\"ל", "gender": "m", "hebrewDay": 11, "hebrewMonth": 4, "hebrewDateStr": "י״א בתמוז", "hebrewYear": "תש\"ע", "donor": ""}, {"id": "csv_376", "name": "אריה", "parentName": "אשר פלדמן ז\"ל", "gender": "m", "hebrewDay": 9, "hebrewMonth": 1, "hebrewDateStr": "ט׳ בניסן", "hebrewYear": "תשנ\"ה", "donor": ""}, {"id": "csv_377", "name": "משה (נעים) שבו", "parentName": "רוזה ואליהו ז\"ל", "gender": "m", "hebrewDay": 19, "hebrewMonth": 6, "hebrewDateStr": "י״ט באלול", "hebrewYear": "תשס\"ג", "donor": ""}, {"id": "csv_378", "name": "מאיר", "parentName": "נחמה ז\"ל", "gender": "m", "hebrewDay": 24, "hebrewMonth": 10, "hebrewDateStr": "כ״ד בטבת", "hebrewYear": "תש\"ן", "donor": ""}, {"id": "csv_379", "name": "שמחה עזרא", "parentName": "טובה ז\"ל", "gender": "f", "hebrewDay": 28, "hebrewMonth": 6, "hebrewDateStr": "כ״ח באלול", "hebrewYear": "תשנ\"ו", "donor": ""}, {"id": "csv_380", "name": "נסים עזרא", "parentName": "שבתאי וזילפה ז\"ל", "gender": "m", "hebrewDay": 5, "hebrewMonth": 11, "hebrewDateStr": "ה׳ בשבט", "hebrewYear": "תשס\"ח", "donor": ""}, {"id": "csv_381", "name": "יוכבד", "parentName": "טאג'ה ז\"ל", "gender": "f", "hebrewDay": 13, "hebrewMonth": 2, "hebrewDateStr": "י״ג באייר", "hebrewYear": "תשס\"ח", "donor": ""}, {"id": "csv_382", "name": "נזירה (צופיה) שבו", "parentName": "דיבה ומאיר ז\"ל", "gender": "f", "hebrewDay": 19, "hebrewMonth": 8, "hebrewDateStr": "י״ט בחשוון", "hebrewYear": "תשס\"א", "donor": ""}, {"id": "csv_383", "name": "מאיר", "parentName": "חיה קלדרון ז\"ל", "gender": "m", "hebrewDay": 11, "hebrewMonth": 8, "hebrewDateStr": "י״א בחשוון", "hebrewYear": "תש\"ע", "donor": ""}, {"id": "csv_384", "name": "יאיר תורג'מן", "parentName": "מיכל ז\"", "gender": "m", "hebrewDay": 23, "hebrewMonth": 1, "hebrewDateStr": "כ״ג בניסן", "hebrewYear": "תשע\"א", "donor": ""}, {"id": "csv_385", "name": "שמחה כהן", "parentName": "עזיזה ז\"ל", "gender": "f", "hebrewDay": 2, "hebrewMonth": 9, "hebrewDateStr": "ב׳ בכסלו", "hebrewYear": "תשע\"א", "donor": ""}, {"id": "csv_386", "name": "יצחק זורבצ'י זצ\"ל", "parentName": "אברהם", "gender": "m", "hebrewDay": 5, "hebrewMonth": 11, "hebrewDateStr": "ה׳ בשבט", "hebrewYear": "תשע\"ב", "donor": ""}, {"id": "csv_387", "name": "ברוך מזרחי", "parentName": "אסתר ז\"ל", "gender": "m", "hebrewDay": 13, "hebrewMonth": 9, "hebrewDateStr": "י״ג בכסלו", "hebrewYear": "תש\"ע", "donor": ""}, {"id": "csv_388", "name": "מרדכי יונה", "parentName": "יוסף ושמחה ז\"ל", "gender": "m", "hebrewDay": 12, "hebrewMonth": 2, "hebrewDateStr": "י״ב באייר", "hebrewYear": "תשע\"א", "donor": ""}, {"id": "csv_389", "name": "יצחק", "parentName": "חיה קלדרון ז\"ל", "gender": "m", "hebrewDay": 27, "hebrewMonth": 5, "hebrewDateStr": "כ״ז באב", "hebrewYear": "תשס\"ח", "donor": ""}, {"id": "csv_390", "name": "מרגלית (ג'ויה) קלדרון", "parentName": "אסתר ז\"ל", "gender": "f", "hebrewDay": 9, "hebrewMonth": 9, "hebrewDateStr": "ט׳ בכסלו", "hebrewYear": "תשס\"ח", "donor": ""}, {"id": "csv_391", "name": "אלברט עובדיה סילס ז\"ל", "parentName": "פלורה ונסים", "gender": "m", "hebrewDay": 29, "hebrewMonth": 2, "hebrewDateStr": "כ״ט באייר", "hebrewYear": "תשס\"ט", "donor": ""}, {"id": "csv_392", "name": "יצחק ברהום", "parentName": "צ'חלה ז\"ל", "gender": "m", "hebrewDay": 20, "hebrewMonth": 9, "hebrewDateStr": "כ׳ בכסלו", "hebrewYear": "תשנ\"ח", "donor": ""}, {"id": "csv_393", "name": "אסתר (אושרת) ז\"ל", "parentName": "חוה", "gender": "f", "hebrewDay": 1, "hebrewMonth": 7, "hebrewDateStr": "א׳ בתשרי", "hebrewYear": "תש", "donor": ""}, {"id": "csv_394", "name": "יוסף", "parentName": "צפורה ז\"ל", "gender": "m", "hebrewDay": 6, "hebrewMonth": 10, "hebrewDateStr": "ו׳ בטבת", "hebrewYear": "תשע\"ב", "donor": ""}, {"id": "csv_395", "name": "שלום", "parentName": "רחל ז\"ל", "gender": "m", "hebrewDay": 4, "hebrewMonth": 9, "hebrewDateStr": "ד׳ בכסלו", "hebrewYear": "תשע\"ב", "donor": ""}, {"id": "csv_396", "name": "משה חסידים", "parentName": "מזל ז\"ל", "gender": "m", "hebrewDay": 29, "hebrewMonth": 5, "hebrewDateStr": "כ״ט באב", "hebrewYear": "תשס\"ט", "donor": ""}, {"id": "csv_397", "name": "דן קלדרון", "parentName": "שרה ז\"ל", "gender": "m", "hebrewDay": 14, "hebrewMonth": 9, "hebrewDateStr": "י״ד בכסלו", "hebrewYear": "תשל\"ג", "donor": ""}, {"id": "csv_398", "name": "מרים", "parentName": "רחל ז\"ל", "gender": "f", "hebrewDay": 4, "hebrewMonth": 8, "hebrewDateStr": "ד׳ בחשוון", "hebrewYear": "תשס\"ז", "donor": ""}, {"id": "csv_399", "name": "מסעודה ברהום", "parentName": "מעטוקה ז\"ל", "gender": "f", "hebrewDay": 28, "hebrewMonth": 3, "hebrewDateStr": "כ״ח בסיוון", "hebrewYear": "תשס\"ח", "donor": ""}, {"id": "csv_400", "name": "סרח לוין", "parentName": "רבקה וניסן ז\"ל", "gender": "f", "hebrewDay": 13, "hebrewMonth": 4, "hebrewDateStr": "י״ג בתמוז", "hebrewYear": "תשס\"ח", "donor": ""}, {"id": "csv_401", "name": "אסתר קבסה ז\"ל", "parentName": "סעדה וישראל מור יוסף", "gender": "f", "hebrewDay": 28, "hebrewMonth": 2, "hebrewDateStr": "כ״ח באייר", "hebrewYear": "תשע\"א", "donor": ""}, {"id": "csv_402", "name": "מרים רחל חזן ז\"ל", "parentName": "אסתר ושמעון קבסה", "gender": "f", "hebrewDay": 27, "hebrewMonth": 3, "hebrewDateStr": "כ״ז בסיוון", "hebrewYear": "תשנ\"ה", "donor": ""}, {"id": "csv_403", "name": "הוניסמו-אליעזר גודסבלט", "parentName": "רחל ז\"ל", "gender": "m", "hebrewDay": 14, "hebrewMonth": 5, "hebrewDateStr": "י״ד באב", "hebrewYear": "תשס\"ט", "donor": ""}, {"id": "csv_404", "name": "אהרן בכר", "parentName": "בת שבע", "gender": "m", "hebrewDay": 25, "hebrewMonth": 12, "hebrewDateStr": "כ״ה באדר", "hebrewYear": "תשכ\"ה", "donor": ""}, {"id": "csv_405", "name": "אסתר בכר", "parentName": "לבנה ז\"ל", "gender": "f", "hebrewDay": 8, "hebrewMonth": 10, "hebrewDateStr": "ח׳ בטבת", "hebrewYear": "תשמ\"ב", "donor": ""}, {"id": "csv_406", "name": "חמדה בנדטסון", "parentName": "רחל ומשה ז\"ל", "gender": "f", "hebrewDay": 9, "hebrewMonth": 4, "hebrewDateStr": "ט׳ בתמוז", "hebrewYear": "תשס\"ח", "donor": ""}, {"id": "csv_407", "name": "יוסף שטקל", "parentName": "יהודה וחיה ז\"ל", "gender": "m", "hebrewDay": 25, "hebrewMonth": 11, "hebrewDateStr": "כ״ה בשבט", "hebrewYear": "תשס\"ח", "donor": ""}, {"id": "csv_408", "name": "לבנה כהן", "parentName": "מרים ז\"ל", "gender": "f", "hebrewDay": 5, "hebrewMonth": 9, "hebrewDateStr": "ה׳ בכסלו", "hebrewYear": "תשע\"א", "donor": ""}, {"id": "csv_409", "name": "שפרה בן שושן", "parentName": "יהודה וויאמנטה ז\"ל", "gender": "f", "hebrewDay": 1, "hebrewMonth": 6, "hebrewDateStr": "א׳ באלול", "hebrewYear": "תש\"ע", "donor": ""}, {"id": "csv_410", "name": "ג'וליט", "parentName": "אביבה ז\"ל", "gender": "f", "hebrewDay": 1, "hebrewMonth": 4, "hebrewDateStr": "א׳ בתמוז", "hebrewYear": "תש\"ע", "donor": ""}, {"id": "csv_411", "name": "צבי", "parentName": "יחזקאל ז\"ל", "gender": "m", "hebrewDay": 1, "hebrewMonth": 4, "hebrewDateStr": "א׳ בתמוז", "hebrewYear": "תש\"ע", "donor": ""}, {"id": "csv_412", "name": "שמואל כהן", "parentName": "זכיה ז\"ל", "gender": "m", "hebrewDay": 1, "hebrewMonth": 1, "hebrewDateStr": "א׳ בניסן", "hebrewYear": "תשס\"ט", "donor": ""}, {"id": "csv_413", "name": "קלרה", "parentName": "אסתר ז\"ל", "gender": "f", "hebrewDay": 27, "hebrewMonth": 3, "hebrewDateStr": "כ״ז בסיוון", "hebrewYear": "תשמ\"ט", "donor": ""}, {"id": "csv_414", "name": "יהושע פירו", "parentName": "רחל ז\"ל", "gender": "m", "hebrewDay": 27, "hebrewMonth": 12, "hebrewDateStr": "כ״ז באדר", "hebrewYear": "תשס\"ח", "donor": ""}, {"id": "csv_415", "name": "טובה שטקל", "parentName": "מרים ומנשה ז\"ל", "gender": "f", "hebrewDay": 14, "hebrewMonth": 11, "hebrewDateStr": "י״ד בשבט", "hebrewYear": "תשס\"ז", "donor": ""}, {"id": "csv_416", "name": "ניסן זורבצ'י ז\"ל", "parentName": "סרח", "gender": "m", "hebrewDay": 25, "hebrewMonth": 11, "hebrewDateStr": "כ״ה בשבט", "hebrewYear": "תש", "donor": ""}, {"id": "csv_417", "name": "רחל זורבצ'י", "parentName": "כונצה", "gender": "f", "hebrewDay": 12, "hebrewMonth": 4, "hebrewDateStr": "י״ב בתמוז", "hebrewYear": "תש", "donor": ""}, {"id": "csv_418", "name": "ניסן זורבצ'י ז\"ל", "parentName": "יצחק ואסתר", "gender": "m", "hebrewDay": 9, "hebrewMonth": 11, "hebrewDateStr": "ט׳ בשבט", "hebrewYear": "תשנ\"ה", "donor": ""}, {"id": "csv_419", "name": "יעקב זורבצ'י", "parentName": "רחל ז\"ל", "gender": "m", "hebrewDay": 1, "hebrewMonth": 11, "hebrewDateStr": "א׳ בשבט", "hebrewYear": "תש", "donor": ""}, {"id": "csv_420", "name": "זלפה זורבצ'י ז\"ל", "parentName": "רבקה", "gender": "f", "hebrewDay": 1, "hebrewMonth": 5, "hebrewDateStr": "א׳ באב", "hebrewYear": "תש", "donor": ""}, {"id": "csv_421", "name": "סימנטוב עזריין ז\"ל", "parentName": "עזרא", "gender": "m", "hebrewDay": 7, "hebrewMonth": 1, "hebrewDateStr": "ז׳ בניסן", "hebrewYear": "תש", "donor": ""}, {"id": "csv_422", "name": "זרין עזריין ז\"ל", "parentName": "טאוס", "gender": "f", "hebrewDay": 3, "hebrewMonth": 9, "hebrewDateStr": "ג׳ בכסלו", "hebrewYear": "תש", "donor": ""}, {"id": "csv_423", "name": "שם טוב נצר עזריין ז\"ל", "parentName": "זרין", "gender": "m", "hebrewDay": 10, "hebrewMonth": 1, "hebrewDateStr": "י׳ בניסן", "hebrewYear": "תש", "donor": ""}, {"id": "csv_424", "name": "מרים", "parentName": "אסתר (שכר) ז\"ל", "gender": "f", "hebrewDay": 15, "hebrewMonth": 7, "hebrewDateStr": "ט״ו בתשרי", "hebrewYear": "תשנ\"ח", "donor": ""}, {"id": "csv_425", "name": "שלום שלומי", "parentName": "קרלה ור' ציון ז\"ל", "gender": "m", "hebrewDay": 25, "hebrewMonth": 13, "hebrewDateStr": "כ״ה באדר ב׳", "hebrewYear": "תשנ\"ה", "donor": ""}, {"id": "csv_426", "name": "יעקב כהן", "parentName": "נוה ז\"ל", "gender": "m", "hebrewDay": 22, "hebrewMonth": 12, "hebrewDateStr": "כ״ב באדר", "hebrewYear": "תשצו", "donor": ""}, {"id": "csv_427", "name": "מזל", "parentName": "בכורה כהן ז\"ל", "gender": "f", "hebrewDay": 22, "hebrewMonth": 6, "hebrewDateStr": "כ״ב באלול", "hebrewYear": "תשמ\"א", "donor": ""}, {"id": "csv_428", "name": "ר' יהודה מנצור", "parentName": "מרים ז\"ל", "gender": "m", "hebrewDay": 14, "hebrewMonth": 7, "hebrewDateStr": "י״ד בתשרי", "hebrewYear": "תשמ\"ה", "donor": ""}, {"id": "csv_429", "name": "אלברט (אברהם) דבש", "parentName": "פיני ז\"ל", "gender": "m", "hebrewDay": 18, "hebrewMonth": 10, "hebrewDateStr": "י״ח בטבת", "hebrewYear": "תשנ\"ב", "donor": ""}, {"id": "csv_430", "name": "בת שבע", "parentName": "רחל ז\"ל", "gender": "f", "hebrewDay": 2, "hebrewMonth": 6, "hebrewDateStr": "ב׳ באלול", "hebrewYear": "תשנ\"ו", "donor": ""}, {"id": "csv_431", "name": "מימי", "parentName": "חמאמי (יונה)", "gender": "f", "hebrewDay": 23, "hebrewMonth": 6, "hebrewDateStr": "כ״ג באלול", "hebrewYear": "תשנ\"ב", "donor": ""}, {"id": "csv_432", "name": "ויקי ויקטוריה", "parentName": "בת שבע ז\"ל", "gender": "f", "hebrewDay": 10, "hebrewMonth": 4, "hebrewDateStr": "י׳ בתמוז", "hebrewYear": "תשס\"ט", "donor": ""}, {"id": "csv_433", "name": "שלום יוחאי מנצור", "parentName": "יהודה וחמאמי (יונה) ז\"ל", "gender": "m", "hebrewDay": 2, "hebrewMonth": 3, "hebrewDateStr": "ב׳ בסיוון", "hebrewYear": "תשס\"ו", "donor": ""}, {"id": "csv_434", "name": "חמאמי פלומבה יונה", "parentName": "רבקה ז\"ל", "gender": "f", "hebrewDay": 28, "hebrewMonth": 5, "hebrewDateStr": "כ״ח באב", "hebrewYear": "תשע\"ה", "donor": ""}, {"id": "csv_435", "name": "רחמים שם טוב", "parentName": "עזיזה ז\"ל", "gender": "m", "hebrewDay": 6, "hebrewMonth": 8, "hebrewDateStr": "ו׳ בחשוון", "hebrewYear": "תשמ\"ה", "donor": ""}, {"id": "csv_436", "name": "ר' רחמים הכהן מולקנדוף", "parentName": "מזל זצ\"ל", "gender": "m", "hebrewDay": 14, "hebrewMonth": 12, "hebrewDateStr": "י״ד באדר", "hebrewYear": "תשל\"ו", "donor": ""}, {"id": "csv_437", "name": "אליהו סרוגו", "parentName": "יצחק וצופיה", "gender": "m", "hebrewDay": 19, "hebrewMonth": 10, "hebrewDateStr": "י״ט בטבת", "hebrewYear": "תשנה", "donor": ""}, {"id": "csv_438", "name": "בלה", "parentName": "פרידה וידידה ז\"ל", "gender": "f", "hebrewDay": 17, "hebrewMonth": 13, "hebrewDateStr": "י״ז באדר ב׳", "hebrewYear": "תשעה", "donor": ""}, {"id": "csv_439", "name": "אסתר", "parentName": "רימה", "gender": "f", "hebrewDay": 14, "hebrewMonth": 1, "hebrewDateStr": "י״ד בניסן", "hebrewYear": "תשנ\"ט", "donor": ""}, {"id": "csv_440", "name": "עזרא", "parentName": "זילפה", "gender": "m", "hebrewDay": 3, "hebrewMonth": 7, "hebrewDateStr": "ג׳ בתשרי", "hebrewYear": "תשס\"ז", "donor": ""}, {"id": "csv_441", "name": "סמדר", "parentName": "זהבה", "gender": "f", "hebrewDay": 11, "hebrewMonth": 11, "hebrewDateStr": "י״א בשבט", "hebrewYear": "תשמ\"ט", "donor": ""}, {"id": "csv_442", "name": "יצחק אייזיק ז''ל", "parentName": "שמואל מאיר ואביבה לנה ז''ל", "gender": "m", "hebrewDay": 17, "hebrewMonth": 2, "hebrewDateStr": "י״ז באייר", "hebrewYear": "תשעז", "donor": ""}, {"id": "csv_443", "name": "יפה", "parentName": "שרה", "gender": "f", "hebrewDay": 5, "hebrewMonth": 11, "hebrewDateStr": "ה׳ בשבט", "hebrewYear": "תשעו", "donor": ""}, {"id": "csv_444", "name": "יוסף נעים זכריה ז\"ל", "parentName": "שרה ויצחק ז\"ל", "gender": "m", "hebrewDay": 10, "hebrewMonth": 8, "hebrewDateStr": "י׳ בחשוון", "hebrewYear": "תשסג", "donor": ""}, {"id": "csv_445", "name": "אליהו", "parentName": "יפה יחיא ז\"ל", "gender": "m", "hebrewDay": 8, "hebrewMonth": 8, "hebrewDateStr": "ח׳ בחשוון", "hebrewYear": "תשנה", "donor": ""}, {"id": "csv_446", "name": "סעידה", "parentName": "שרה ויצחק ז\"ל", "gender": "f", "hebrewDay": 11, "hebrewMonth": 8, "hebrewDateStr": "י״א בחשוון", "hebrewYear": "תשנד", "donor": ""}, {"id": "csv_447", "name": "אהובה גרודלנסקי", "parentName": "רחל והרב משה חיים זצ\"ל", "gender": "f", "hebrewDay": 29, "hebrewMonth": 8, "hebrewDateStr": "כ״ט בחשוון", "hebrewYear": "תשכד", "donor": ""}, {"id": "csv_448", "name": "עליזה ממן", "parentName": "מסעודה ז\"ל", "gender": "f", "hebrewDay": 23, "hebrewMonth": 8, "hebrewDateStr": "כ״ג בחשוון", "hebrewYear": "תשסה", "donor": ""}, {"id": "csv_449", "name": "מלכה אבוגנים", "parentName": "רבקה ז\"ל", "gender": "f", "hebrewDay": 3, "hebrewMonth": 8, "hebrewDateStr": "ג׳ בחשוון", "hebrewYear": "תשמז", "donor": ""}, {"id": "csv_450", "name": "אשר כהן שור ז\"ל", "parentName": "יפה ז\"ל", "gender": "m", "hebrewDay": 6, "hebrewMonth": 8, "hebrewDateStr": "ו׳ בחשוון", "hebrewYear": "תשסו", "donor": ""}, {"id": "csv_451", "name": "אורי אשרי", "parentName": "מרים ז\"ל", "gender": "m", "hebrewDay": 8, "hebrewMonth": 8, "hebrewDateStr": "ח׳ בחשוון", "hebrewYear": "תשמט", "donor": ""}, {"id": "csv_452", "name": "נחום בן מיכאל", "parentName": "ריחנה ז\"ל נפטר בערב שבת קודש", "gender": "m", "hebrewDay": 9, "hebrewMonth": 10, "hebrewDateStr": "ט׳ בטבת", "hebrewYear": "תשעז", "donor": ""}, {"id": "csv_453", "name": "אסתר שניאור", "parentName": "עישה", "gender": "f", "hebrewDay": 19, "hebrewMonth": 9, "hebrewDateStr": "י״ט בכסלו", "hebrewYear": "תשע", "donor": ""}, {"id": "csv_454", "name": "לאה אמויאל", "parentName": "חנה", "gender": "f", "hebrewDay": 20, "hebrewMonth": 9, "hebrewDateStr": "כ׳ בכסלו", "hebrewYear": "תשעה", "donor": ""}, {"id": "csv_455", "name": "עליזה תדהר", "parentName": "מזל ושמואל כהן", "gender": "f", "hebrewDay": 30, "hebrewMonth": 11, "hebrewDateStr": "ל׳ בשבט", "hebrewYear": "תשעז", "donor": ""}, {"id": "csv_456", "name": "יוסף בן יאיר", "parentName": "אסתר", "gender": "m", "hebrewDay": 29, "hebrewMonth": 13, "hebrewDateStr": "כ״ט באדר ב׳", "hebrewYear": "תשסה", "donor": ""}, {"id": "csv_457", "name": "אליהו שרביט", "parentName": "רוחמה", "gender": "m", "hebrewDay": 28, "hebrewMonth": 11, "hebrewDateStr": "כ״ח בשבט", "hebrewYear": "תשנד", "donor": ""}, {"id": "csv_458", "name": "יקוט שרביט", "parentName": "אסתר", "gender": "f", "hebrewDay": 18, "hebrewMonth": 7, "hebrewDateStr": "י״ח בתשרי", "hebrewYear": "תשעד", "donor": ""}, {"id": "csv_459", "name": "ר שמעון דיין", "parentName": "יקוט", "gender": "m", "hebrewDay": 3, "hebrewMonth": 1, "hebrewDateStr": "ג׳ בניסן", "hebrewYear": "תשעג", "donor": ""}, {"id": "csv_460", "name": "הרבנית סוליקה", "parentName": "תמו תמר ז\"ל", "gender": "f", "hebrewDay": 17, "hebrewMonth": 5, "hebrewDateStr": "י״ז באב", "hebrewYear": "תשעז", "donor": ""}, {"id": "csv_461", "name": "הגבאי המסור מתי להב", "parentName": "אסתר ז\"ל", "gender": "m", "hebrewDay": 5, "hebrewMonth": 5, "hebrewDateStr": "ה׳ באב", "hebrewYear": "תשעז", "donor": ""}, {"id": "csv_462", "name": "ירון", "parentName": "מרים", "gender": "m", "hebrewDay": 23, "hebrewMonth": 6, "hebrewDateStr": "כ״ג באלול", "hebrewYear": "תשעג", "donor": ""}, {"id": "csv_463", "name": "מרים", "parentName": "רשל", "gender": "f", "hebrewDay": 14, "hebrewMonth": 5, "hebrewDateStr": "י״ד באב", "hebrewYear": "תשעא", "donor": ""}, {"id": "csv_464", "name": "דוד לוי", "parentName": "מזל", "gender": "m", "hebrewDay": 30, "hebrewMonth": 9, "hebrewDateStr": "ל׳ בכסלו", "hebrewYear": "תשעט", "donor": ""}, {"id": "csv_465", "name": "אליהו", "parentName": "אסתר", "gender": "m", "hebrewDay": 6, "hebrewMonth": 11, "hebrewDateStr": "ו׳ בשבט", "hebrewYear": "תשסח", "donor": ""}, {"id": "csv_466", "name": "רחמים תורג'מן", "parentName": "רחל ויוסף", "gender": "m", "hebrewDay": 22, "hebrewMonth": 7, "hebrewDateStr": "כ״ב בתשרי", "hebrewYear": "תשפ", "donor": ""}, {"id": "csv_467", "name": "צדיק ישעיהו", "parentName": "זילפה ודוד ז\"ל", "gender": "m", "hebrewDay": 18, "hebrewMonth": 10, "hebrewDateStr": "י״ח בטבת", "hebrewYear": "תשפ", "donor": ""}, {"id": "csv_468", "name": "בת שבע גלנטי", "parentName": "חיה ורחמים קלדרון ז\"ל", "gender": "f", "hebrewDay": 25, "hebrewMonth": 6, "hebrewDateStr": "כ״ה באלול", "hebrewYear": "תשעט", "donor": ""}, {"id": "csv_469", "name": "חביבה אליאסיאן", "parentName": "חנניה ויפה ע\"ה", "gender": "f", "hebrewDay": 3, "hebrewMonth": 8, "hebrewDateStr": "ג׳ בחשוון", "hebrewYear": "תשעז", "donor": ""}, {"id": "csv_470", "name": "שמחה גבאי", "parentName": "לאה ז\"ל", "gender": "f", "hebrewDay": 20, "hebrewMonth": 9, "hebrewDateStr": "כ׳ בכסלו", "hebrewYear": "תשפא", "donor": ""}, {"id": "csv_471", "name": "יוסף אילוז", "parentName": "פרחה ז\"ל", "gender": "m", "hebrewDay": 21, "hebrewMonth": 9, "hebrewDateStr": "כ״א בכסלו", "hebrewYear": "תשפא", "donor": ""}, {"id": "csv_472", "name": "מנשה קצב", "parentName": "משה וחנה ז\"ל", "gender": "m", "hebrewDay": 3, "hebrewMonth": 3, "hebrewDateStr": "ג׳ בסיוון", "hebrewYear": "תשפא", "donor": ""}, {"id": "csv_473", "name": "משה ברוכים", "parentName": "חנה (במון) וגבריאל", "gender": "m", "hebrewDay": 7, "hebrewMonth": 11, "hebrewDateStr": "ז׳ בשבט", "hebrewYear": "תשפא", "donor": ""}, {"id": "csv_474", "name": "משה בר חיים", "parentName": "נונה ומיכאל", "gender": "m", "hebrewDay": 22, "hebrewMonth": 4, "hebrewDateStr": "כ״ב בתמוז", "hebrewYear": "תשפב", "donor": ""}, {"id": "csv_475", "name": "צדיקה", "parentName": "דינה", "gender": "f", "hebrewDay": 27, "hebrewMonth": 1, "hebrewDateStr": "כ״ז בניסן", "hebrewYear": "תשפג", "donor": ""}, {"id": "csv_476", "name": "אהרון בר חיים", "parentName": "נונה", "gender": "m", "hebrewDay": 27, "hebrewMonth": 2, "hebrewDateStr": "כ״ז באייר", "hebrewYear": "תשפג", "donor": ""}, {"id": "csv_477", "name": "חביבה", "parentName": "נעימה", "gender": "f", "hebrewDay": 12, "hebrewMonth": 4, "hebrewDateStr": "י״ב בתמוז", "hebrewYear": "תשפג", "donor": ""}, {"id": "csv_478", "name": "אפרים", "parentName": "סולטנה", "gender": "m", "hebrewDay": 28, "hebrewMonth": 7, "hebrewDateStr": "כ״ח בתשרי", "hebrewYear": "תשפד", "donor": ""}, {"id": "csv_479", "name": "חנה", "parentName": "מזל", "gender": "f", "hebrewDay": 19, "hebrewMonth": 12, "hebrewDateStr": "י״ט באדר", "hebrewYear": "תשעח", "donor": ""}, {"id": "csv_480", "name": "אשר ערן כאליהו", "parentName": "מאיר וברכה", "gender": "m", "hebrewDay": 6, "hebrewMonth": 1, "hebrewDateStr": "ו׳ בניסן", "hebrewYear": "תשעז", "donor": ""}, {"id": "csv_481", "name": "שלמה שחר", "parentName": "אהרון ומזל", "gender": "m", "hebrewDay": 5, "hebrewMonth": 10, "hebrewDateStr": "ה׳ בטבת", "hebrewYear": "תשפ", "donor": ""}, {"id": "csv_482", "name": "צדוק ישעיהו", "parentName": "זלפה", "gender": "m", "hebrewDay": 18, "hebrewMonth": 10, "hebrewDateStr": "י״ח בטבת", "hebrewYear": "תשפ", "donor": ""}, {"id": "csv_483", "name": "הרב ישראל פנחס", "parentName": "משה יעקב ואסתר", "gender": "m", "hebrewDay": 8, "hebrewMonth": 11, "hebrewDateStr": "ח׳ בשבט", "hebrewYear": "תשפ", "donor": ""}, {"id": "csv_484", "name": "אלכס סלע", "parentName": "שמעון וכוהנה סלם", "gender": "m", "hebrewDay": 10, "hebrewMonth": 11, "hebrewDateStr": "י׳ בשבט", "hebrewYear": "תשפא", "donor": ""}, {"id": "csv_485", "name": "יעקב ידיד הלוי", "parentName": "שמחה", "gender": "m", "hebrewDay": 29, "hebrewMonth": 6, "hebrewDateStr": "כ״ט באלול", "hebrewYear": "תשפא", "donor": ""}, {"id": "csv_486", "name": "משה בר חיים", "parentName": "נונה", "gender": "m", "hebrewDay": 22, "hebrewMonth": 4, "hebrewDateStr": "כ״ב בתמוז", "hebrewYear": "תשפב", "donor": ""}, {"id": "csv_487", "name": "יונה חיוני", "parentName": "רוחמה", "gender": "m", "hebrewDay": 1, "hebrewMonth": 12, "hebrewDateStr": "א׳ באדר", "hebrewYear": "תשפג", "donor": ""}, {"id": "csv_488", "name": "שמעון בללתי", "parentName": "חנה", "gender": "m", "hebrewDay": 26, "hebrewMonth": 2, "hebrewDateStr": "כ״ו באייר", "hebrewYear": "תשפג", "donor": ""}, {"id": "csv_489", "name": "אפרים דרור", "parentName": "סולטנה", "gender": "m", "hebrewDay": 27, "hebrewMonth": 7, "hebrewDateStr": "כ״ז בתשרי", "hebrewYear": "תשפד", "donor": ""}, {"id": "csv_490", "name": "הגבאי האהוב ליאון מלל", "parentName": "רבקה ואהרון", "gender": "m", "hebrewDay": 21, "hebrewMonth": 11, "hebrewDateStr": "כ״א בשבט", "hebrewYear": "תשפד", "donor": ""}, {"id": "csv_491", "name": "הרב יהודה דרעי", "parentName": "אסתר", "gender": "m", "hebrewDay": 3, "hebrewMonth": 4, "hebrewDateStr": "ג׳ בתמוז", "hebrewYear": "תשפד", "donor": ""}, {"id": "csv_492", "name": "רבי עמנואל בן שימחון", "parentName": "יקוט", "gender": "m", "hebrewDay": 22, "hebrewMonth": 5, "hebrewDateStr": "כ״ב באב", "hebrewYear": "תשפד", "donor": ""}, {"id": "csv_493", "name": "חיים ממן", "parentName": "שמחה", "gender": "m", "hebrewDay": 1, "hebrewMonth": 8, "hebrewDateStr": "א׳ בחשוון", "hebrewYear": "תשפד", "donor": ""}, {"id": "csv_494", "name": "שרית הלל", "parentName": "מזל", "gender": "f", "hebrewDay": 12, "hebrewMonth": 9, "hebrewDateStr": "י״ב בכסלו", "hebrewYear": "תשפה", "donor": ""}, {"id": "csv_495", "name": "ר' דוד בן לולו", "parentName": "מסעודה", "gender": "m", "hebrewDay": 11, "hebrewMonth": 10, "hebrewDateStr": "י״א בטבת", "hebrewYear": "תשפה", "donor": ""}, {"id": "csv_496", "name": "אמנון רם", "parentName": "אסתר", "gender": "m", "hebrewDay": 27, "hebrewMonth": 10, "hebrewDateStr": "כ״ז בטבת", "hebrewYear": "תשפה", "donor": ""}, {"id": "csv_497", "name": "עפר שרנקה אלוני", "parentName": "רות וראובן", "gender": "m", "hebrewDay": 27, "hebrewMonth": 10, "hebrewDateStr": "כ״ז בטבת", "hebrewYear": "תשפה", "donor": ""}, {"id": "csv_498", "name": "רותי", "parentName": "שמחה", "gender": "f", "hebrewDay": 4, "hebrewMonth": 2, "hebrewDateStr": "ד׳ באייר", "hebrewYear": "תשפה", "donor": ""}, {"id": "csv_499", "name": "רבקה", "parentName": "מרגלית", "gender": "f", "hebrewDay": 19, "hebrewMonth": 9, "hebrewDateStr": "י״ט בכסלו", "hebrewYear": "תשפה", "donor": ""}, {"id": "csv_500", "name": "רותי קלדרון", "parentName": "שמחה", "gender": "f", "hebrewDay": 4, "hebrewMonth": 12, "hebrewDateStr": "ד׳ באדר", "hebrewYear": "תשפה", "donor": ""}, {"id": "csv_501", "name": "שרה", "parentName": "דינה", "gender": "f", "hebrewDay": 5, "hebrewMonth": 12, "hebrewDateStr": "ה׳ באדר", "hebrewYear": "תשפו", "donor": ""}, {"id": "csv_502", "name": "אילנה", "parentName": "עזיזה", "gender": "f", "hebrewDay": 5, "hebrewMonth": 2, "hebrewDateStr": "ה׳ באייר", "hebrewYear": "תשפד", "donor": ""}];
+
+        function initApp() {
+            // Populate Hebrew days 1..30 in select
+            const daySelect = document.getElementById('memHebrewDay');
+            daySelect.innerHTML = '';
+            for (let d = 1; d <= 30; d++) {
+                const opt = document.createElement('option');
+                opt.value = d;
+                opt.textContent = `${HEBREW_DAY_LETTERS[d]} (${d})`;
+                daySelect.appendChild(opt);
+            }
+
+            // Load Config: Priority 1: localStorage, Priority 2: window.PRAYERS_CONFIG
+            loadInitialConfig();
+
+            // Init Firebase if config exists
+            initFirebase();
+
+            // Populate UI tabs
+            renderMemorials();
+            renderWeekdayPrayersTable();
+            renderShabbatPrayersTable();
+            renderSlideSettings();
+            loadFirebaseSettingsForm();
+        }
+
+        function loadInitialConfig() {
+            let saved = null;
+            try {
+                const raw = localStorage.getItem('SYNAGOGUE_PRAYERS_CONFIG');
+                if (raw) saved = JSON.parse(raw);
+            } catch (e) {}
+
+            const baseConfig = window.PRAYERS_CONFIG || {};
+            const baseVersion = baseConfig.configVersion || 0;
+            if (saved && (saved.configVersion || 0) >= baseVersion) {
+                currentConfig = saved;
+            } else {
+                currentConfig = JSON.parse(JSON.stringify(baseConfig));
+            }
+
+            // Always ensure all 502 deceased from SYNAGOGUE_BASE_DECEASED are loaded
+            if (!currentConfig.memorialList || currentConfig.memorialList.length < SYNAGOGUE_BASE_DECEASED.length) {
+                currentConfig.memorialList = JSON.parse(JSON.stringify(SYNAGOGUE_BASE_DECEASED));
+            }
+            updateBadges();
+        }
+
+        function saveConfigLocal() {
+            currentConfig.configVersion = Date.now();
+            try {
+                localStorage.setItem('SYNAGOGUE_PRAYERS_CONFIG', JSON.stringify(currentConfig));
+            } catch (e) {
+                console.error("Failed to save to localStorage:", e);
+            }
+            updateBadges();
+        }
+
+        function escapeHtmlAttr(str) {
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        function updateBadges() {
+            const memEl = document.getElementById('memorialCountBadge');
+            if (memEl) memEl.textContent = (currentConfig.memorialList || []).length;
+            const wkEl = document.getElementById('weekdayCountBadge');
+            if (wkEl) wkEl.textContent = (currentConfig.weekdayPrayers || []).length;
+            const shEl = document.getElementById('shabbatCountBadge');
+            if (shEl) shEl.textContent = (currentConfig.shabbatPrayers || []).length;
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.nav-tab').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+
+            const targetBtn = Array.from(document.querySelectorAll('.nav-tab')).find(b => b.getAttribute('onclick').includes(tabId));
+            if (targetBtn) targetBtn.classList.add('active');
+
+            const targetPanel = document.getElementById(`tab-${tabId}`);
+            if (targetPanel) targetPanel.classList.add('active');
+        }
+
+        // ── TAB 1: MEMORIALS LOGIC ──────────────────────────────────
+        function filterMemorials() {
+            const search = (document.getElementById('memSearchInput').value || '').trim().toLowerCase();
+            const monthFilter = document.getElementById('memMonthFilter').value;
+            const thisWeekDates = getThisWeekDates();
+
+            const all = currentConfig.memorialList || [];
+
+            filteredMemorials = all.filter(m => {
+                // Month filter
+                if (monthFilter === 'current_week') {
+                    const isThisWeek = thisWeekDates.some(w => w.day === m.hebrewDay && w.month === m.hebrewMonth);
+                    if (!isThisWeek) return false;
+                } else if (monthFilter !== 'all') {
+                    if (m.hebrewMonth !== parseInt(monthFilter, 10)) return false;
+                }
+
+                // Search query
+                if (search) {
+                    const name = (m.name || '').toLowerCase();
+                    const parent = (m.parentName || '').toLowerCase();
+                    const dateStr = (m.hebrewDateStr || '').toLowerCase();
+                    const year = (m.hebrewYear || '').toLowerCase();
+                    if (!name.includes(search) && !parent.includes(search) && !dateStr.includes(search) && !year.includes(search)) {
+                        return false;
+                    }
+                }
+                return true;
+            });
+
+            memorialCurrentPage = 1;
+            renderMemorialTable();
+        }
+
+        function renderMemorials() {
+            filterMemorials();
+        }
+
+        function renderMemorialTable() {
+            const tbody = document.getElementById('memorialTableBody');
+            tbody.innerHTML = '';
+
+            const total = filteredMemorials.length;
+            const totalPages = Math.ceil(total / MEMORIALS_PER_PAGE) || 1;
+            if (memorialCurrentPage > totalPages) memorialCurrentPage = totalPages;
+
+            const startIdx = (memorialCurrentPage - 1) * MEMORIALS_PER_PAGE;
+            const pageItems = filteredMemorials.slice(startIdx, startIdx + MEMORIALS_PER_PAGE);
+
+            const thisWeekDates = getThisWeekDates();
+
+            if (pageItems.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-muted);">לא נמצאו נפטרים תואמים לחיפוש/סינון</td></tr>`;
+            } else {
+                pageItems.forEach((person, idx) => {
+                    const isThisWeek = thisWeekDates.some(w => w.day === person.hebrewDay && w.month === person.hebrewMonth);
+                    const benBat = person.gender === 'f' ? 'בת' : 'בן';
+                    const parentStr = person.parentName ? `${benBat} ${person.parentName}` : '-';
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td style="color:var(--text-muted);">${startIdx + idx + 1}</td>
+                        <td style="font-weight:700; color:var(--primary);">${person.name}</td>
+                        <td>${parentStr}</td>
+                        <td style="font-weight:600;">${person.hebrewDateStr}</td>
+                        <td style="color:var(--text-muted);">${person.hebrewYear || '-'}</td>
+                        <td>${isThisWeek ? '<span class="memorial-current-week-tag">🕯️ חל השבוע!</span>' : '<span style="color:#94a3b8; font-size:0.85rem;">-</span>'}</td>
+                        <td>
+                            <button class="btn btn-secondary btn-sm" onclick="editMemorial('${person.id}')" title="ערוך">✏️</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteMemorial('${person.id}')" title="מחק">🗑️</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            // Update Pagination UI
+            document.getElementById('paginationInfo').textContent = `מציג ${pageItems.length} מתוך ${total} נפטרים (עמוד ${memorialCurrentPage} מתוך ${totalPages})`;
+            
+            const controls = document.getElementById('paginationControls');
+            controls.innerHTML = '';
+
+            if (totalPages > 1) {
+                const prevBtn = document.createElement('button');
+                prevBtn.className = 'btn btn-secondary btn-sm';
+                prevBtn.textContent = '◀ קודם';
+                prevBtn.disabled = memorialCurrentPage <= 1;
+                prevBtn.onclick = () => { memorialCurrentPage--; renderMemorialTable(); };
+                controls.appendChild(prevBtn);
+
+                const nextBtn = document.createElement('button');
+                nextBtn.className = 'btn btn-secondary btn-sm';
+                nextBtn.textContent = 'הבא ▶';
+                nextBtn.disabled = memorialCurrentPage >= totalPages;
+                nextBtn.onclick = () => { memorialCurrentPage++; renderMemorialTable(); };
+                controls.appendChild(nextBtn);
+            }
+        }
+
+        function saveMemorial(e) {
+            e.preventDefault();
+            const editId = document.getElementById('editMemorialId').value;
+            const name = document.getElementById('memName').value.trim();
+            const gender = document.getElementById('memGender').value;
+            const parentName = document.getElementById('memParent').value.trim();
+            const hebrewDay = parseInt(document.getElementById('memHebrewDay').value, 10);
+            const hebrewMonth = parseInt(document.getElementById('memHebrewMonth').value, 10);
+            const hebrewYear = document.getElementById('memHebrewYear').value.trim();
+            const donor = document.getElementById('memDonor').value.trim();
+
+            const dateStr = `${HEBREW_DAY_LETTERS[hebrewDay]} ב${HEBREW_MONTHS[hebrewMonth]}`;
+
+            if (!currentConfig.memorialList) currentConfig.memorialList = [];
+
+            if (editId) {
+                // Update existing
+                const idx = currentConfig.memorialList.findIndex(m => String(m.id) === String(editId));
+                if (idx !== -1) {
+                    currentConfig.memorialList[idx] = {
+                        ...currentConfig.memorialList[idx],
+                        name, gender, parentName, hebrewDay, hebrewMonth,
+                        hebrewDateStr: dateStr, hebrewYear, donor
+                    };
+                    showToast(`נפטר/ת "${name}" עודכן בהצלחה!`, 'success');
+                }
+            } else {
+                // Create new
+                const newId = 'mem_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+                currentConfig.memorialList.unshift({
+                    id: newId,
+                    name, gender, parentName, hebrewDay, hebrewMonth,
+                    hebrewDateStr: dateStr, hebrewYear, donor
+                });
+                showToast(`נפטר/ת "${name}" נוסף בהצלחה למאגר!`, 'success');
+            }
+
+            saveConfigLocal();
+            cancelEditMemorial();
+            filterMemorials();
+
+            // Trigger cloud sync if connected
+            if (isCloudConnected) syncConfigToFirestore();
+        }
+
+        function editMemorial(id) {
+            const person = (currentConfig.memorialList || []).find(m => String(m.id) === String(id));
+            if (!person) return;
+
+            document.getElementById('editMemorialId').value = person.id;
+            document.getElementById('memName').value = person.name || '';
+            document.getElementById('memGender').value = person.gender || 'm';
+            document.getElementById('memParent').value = person.parentName || '';
+            document.getElementById('memHebrewDay').value = person.hebrewDay || 1;
+            document.getElementById('memHebrewMonth').value = person.hebrewMonth || 1;
+            document.getElementById('memHebrewYear').value = person.hebrewYear || '';
+            document.getElementById('memDonor').value = person.donor || '';
+
+            document.getElementById('memorialFormTitle').textContent = `✏️ עריכת פרטי נפטר/ת: ${person.name}`;
+            document.getElementById('btnSubmitMemorial').textContent = '💾 שמור שינויים';
+            document.getElementById('btnCancelEdit').style.display = 'inline-flex';
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function cancelEditMemorial() {
+            document.getElementById('editMemorialId').value = '';
+            document.getElementById('memorialForm').reset();
+            document.getElementById('memorialFormTitle').textContent = '🕯️ הוספת נפטר / נפטרת ללוח';
+            document.getElementById('btnSubmitMemorial').textContent = '💾 שמור נפטר במאגר';
+            document.getElementById('btnCancelEdit').style.display = 'none';
+        }
+
+        function deleteMemorial(id) {
+            const person = (currentConfig.memorialList || []).find(m => String(m.id) === String(id));
+            if (!person) return;
+
+            if (confirm(`האם אתה בטוח שברצונך למחוק את "${person.name}" ממאגר הנפטרים?`)) {
+                currentConfig.memorialList = currentConfig.memorialList.filter(m => String(m.id) !== String(id));
+                saveConfigLocal();
+                filterMemorials();
+                showToast(`נפטר/ת נמחק/ה מהמאגר`, 'info');
+                if (isCloudConnected) syncConfigToFirestore();
+            }
+        }
+
+        function exportMemorialsJson() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(currentConfig.memorialList || [], null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", "deceased_backup.json");
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            showToast("קובץ גיבוי הורד בהצלחה!", "success");
+        }
+
+        function restoreFromBaseMemorials() {
+            if (window.PRAYERS_CONFIG && window.PRAYERS_CONFIG.memorialList && window.PRAYERS_CONFIG.memorialList.length > 0) {
+                currentConfig.memorialList = JSON.parse(JSON.stringify(window.PRAYERS_CONFIG.memorialList));
+                saveConfigLocal();
+                renderMemorials();
+                showToast("רשימת הנפטרים שוחזרה בהצלחה!", "success");
+                if (isCloudConnected) syncConfigToFirestore();
+            }
+        }
+
+        // ── TAB 2: WEEKDAY PRAYERS ──────────────────────────────────
+        function renderWeekdayPrayersTable() {
+            const tbody = document.getElementById('weekdayPrayersTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            const list = currentConfig.weekdayPrayers || [];
+
+            list.forEach((item, idx) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><input type="text" class="form-control" style="font-weight:700;" value="${escapeHtmlAttr(item.name)}" oninput="updateWeekdayField(${idx}, 'name', this.value)"></td>
+                    <td><input type="text" class="form-control" value="${escapeHtmlAttr(item.desc)}" oninput="updateWeekdayField(${idx}, 'desc', this.value)"></td>
+                    <td><input type="text" class="form-control time-input-highlight" value="${escapeHtmlAttr(item.time)}" oninput="updateWeekdayField(${idx}, 'time', this.value)"></td>
+                    <td>
+                        <button class="btn btn-secondary btn-sm" onclick="moveWeekdayRow(${idx}, -1)" ${idx === 0 ? 'disabled' : ''}>▲</button>
+                        <button class="btn btn-secondary btn-sm" onclick="moveWeekdayRow(${idx}, 1)" ${idx === list.length - 1 ? 'disabled' : ''}>▼</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteWeekdayRow(${idx})">🗑️</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            updateBadges();
+        }
+
+        function updateWeekdayField(idx, field, val) {
+            if (currentConfig.weekdayPrayers && currentConfig.weekdayPrayers[idx]) {
+                currentConfig.weekdayPrayers[idx][field] = val;
+            }
+        }
+
+        function addWeekdayPrayerRow() {
+            if (!currentConfig.weekdayPrayers) currentConfig.weekdayPrayers = [];
+            currentConfig.weekdayPrayers.push({ name: "תפילה חדשה", desc: "", time: "06:00" });
+            renderWeekdayPrayersTable();
+            updateBadges();
+        }
+
+        function deleteWeekdayRow(idx) {
+            if (currentConfig.weekdayPrayers) {
+                currentConfig.weekdayPrayers.splice(idx, 1);
+                renderWeekdayPrayersTable();
+                updateBadges();
+            }
+        }
+
+        function moveWeekdayRow(idx, direction) {
+            const list = currentConfig.weekdayPrayers;
+            const target = idx + direction;
+            if (target < 0 || target >= list.length) return;
+            const temp = list[idx];
+            list[idx] = list[target];
+            list[target] = temp;
+            renderWeekdayPrayersTable();
+        }
+
+        function saveWeekdayPrayers() {
+            saveConfigLocal();
+            syncConfigToFirestore("זמני תפילות ימות החול עודכנו בלוח בהצלחה! ✅");
+        }
+
+        // ── TAB 3: SHABBAT PRAYERS LOGIC ────────────────────────────
+        function renderShabbatPrayersTable() {
+            document.getElementById('shabbatTitleInput').value = currentConfig.shabbatMainTitle || 'לוח זמנים לשבת';
+            document.getElementById('shabbatParashaInput').value = currentConfig.shabbatParasha || 'auto';
+
+            const tbody = document.getElementById('shabbatPrayersTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            const list = currentConfig.shabbatPrayers || [];
+
+            list.forEach((item, idx) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><input type="text" class="form-control" style="font-weight:700;" value="${escapeHtmlAttr(item.name)}" oninput="updateShabbatField(${idx}, 'name', this.value)"></td>
+                    <td><input type="text" class="form-control" value="${escapeHtmlAttr(item.desc)}" oninput="updateShabbatField(${idx}, 'desc', this.value)"></td>
+                    <td><input type="text" class="form-control time-input-highlight" value="${escapeHtmlAttr(item.time)}" oninput="updateShabbatField(${idx}, 'time', this.value)"></td>
+                    <td>
+                        <button class="btn btn-secondary btn-sm" onclick="moveShabbatRow(${idx}, -1)" ${idx === 0 ? 'disabled' : ''}>▲</button>
+                        <button class="btn btn-secondary btn-sm" onclick="moveShabbatRow(${idx}, 1)" ${idx === list.length - 1 ? 'disabled' : ''}>▼</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteShabbatRow(${idx})">🗑️</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            updateBadges();
+        }
+
+        function updateShabbatField(idx, field, val) {
+            if (currentConfig.shabbatPrayers && currentConfig.shabbatPrayers[idx]) {
+                currentConfig.shabbatPrayers[idx][field] = val;
+            }
+        }
+
+        function addShabbatPrayerRow() {
+            if (!currentConfig.shabbatPrayers) currentConfig.shabbatPrayers = [];
+            currentConfig.shabbatPrayers.push({ name: "תפילה / שיעור לשבת", desc: "", time: "18:00" });
+            renderShabbatPrayersTable();
+            updateBadges();
+        }
+
+        function deleteShabbatRow(idx) {
+            if (currentConfig.shabbatPrayers) {
+                currentConfig.shabbatPrayers.splice(idx, 1);
+                renderShabbatPrayersTable();
+                updateBadges();
+            }
+        }
+
+        function moveShabbatRow(idx, direction) {
+            const list = currentConfig.shabbatPrayers;
+            const target = idx + direction;
+            if (target < 0 || target >= list.length) return;
+            const temp = list[idx];
+            list[idx] = list[target];
+            list[target] = temp;
+            renderShabbatPrayersTable();
+        }
+
+        function saveShabbatPrayers() {
+            currentConfig.shabbatMainTitle = document.getElementById('shabbatTitleInput').value.trim();
+            currentConfig.shabbatParasha = document.getElementById('shabbatParashaInput').value.trim();
+            saveConfigLocal();
+            syncConfigToFirestore("זמני השבת וימות החול עודכנו בלוח בית הכנסת בהצלחה! ✅");
+        }
+
+        // ── TAB 4: SLIDES & NOTICES ─────────────────────────────────
+        function renderSlideSettings() {
+            document.getElementById('slideDurationInput').value = currentConfig.slideDurationSeconds || 30;
+            document.getElementById('initialSlideSelect').value = currentConfig.initialSlide || 1;
+
+            const c = currentConfig.condolenceNotice || {};
+            document.getElementById('condolenceEnabledInput').checked = !!c.enabled;
+            document.getElementById('condolenceDurationInput').value = c.durationSeconds || 10;
+            document.getElementById('condolenceTitleInput').value = c.title || "ברוך דיין האמת";
+            document.getElementById('condolenceSubtitleInput').value = c.subtitle || "הודעת אבל והשתתפות בצער";
+            document.getElementById('condolenceIntroInput').value = c.introText || "קהילת בית הכנסת משתתפת בצערה העמוק של המשפחה על פטירתו של";
+            document.getElementById('condolenceRelationInput').value = c.relationText || "אבינו וסבנו היקר";
+            document.getElementById('condolenceDeceasedInput').value = c.deceasedName || "";
+            document.getElementById('condolenceFuneralInput').value = c.funeralDetails || "";
+            document.getElementById('condolenceShivaLocationInput').value = c.shivaLocation || "";
+            document.getElementById('condolenceShivaHoursInput').value = c.shivaHours || "";
+            document.getElementById('condolenceMournersInput').value = c.mourners || "המשפחה האבלה";
+            document.getElementById('condolenceBlessingInput').value = c.blessing || "״המקום ינחם אתכם בתוך שאר אבלי ציון וירושלים ולא תוסיפו לדאבה עוד״";
+        }
+
+        function saveSlideSettings() {
+            currentConfig.slideDurationSeconds = parseInt(document.getElementById('slideDurationInput').value, 10) || 30;
+            currentConfig.initialSlide = parseInt(document.getElementById('initialSlideSelect').value, 10) || 1;
+            saveConfigLocal();
+            syncConfigToFirestore("הגדרות השקופיות נשמרו ועודכנו בלוח! ✅");
+        }
+
+        function saveCondolenceSettings() {
+            if (!currentConfig.condolenceNotice) {
+                currentConfig.condolenceNotice = {};
+            }
+            currentConfig.condolenceNotice.enabled = document.getElementById('condolenceEnabledInput').checked;
+            currentConfig.condolenceNotice.durationSeconds = parseInt(document.getElementById('condolenceDurationInput').value, 10) || 10;
+            currentConfig.condolenceNotice.title = document.getElementById('condolenceTitleInput').value.trim();
+            currentConfig.condolenceNotice.subtitle = document.getElementById('condolenceSubtitleInput').value.trim();
+            currentConfig.condolenceNotice.introText = document.getElementById('condolenceIntroInput').value.trim();
+            currentConfig.condolenceNotice.relationText = document.getElementById('condolenceRelationInput').value.trim();
+            currentConfig.condolenceNotice.deceasedName = document.getElementById('condolenceDeceasedInput').value.trim();
+            currentConfig.condolenceNotice.funeralDetails = document.getElementById('condolenceFuneralInput').value.trim();
+            currentConfig.condolenceNotice.shivaLocation = document.getElementById('condolenceShivaLocationInput').value.trim();
+            currentConfig.condolenceNotice.shivaHours = document.getElementById('condolenceShivaHoursInput').value.trim();
+            currentConfig.condolenceNotice.mourners = document.getElementById('condolenceMournersInput').value.trim();
+            currentConfig.condolenceNotice.blessing = document.getElementById('condolenceBlessingInput').value.trim();
+
+            saveConfigLocal();
+            syncConfigToFirestore("מודעת האבל וההשתתפות בצער עודכנה בלוח! ✅");
+        }
+
+        function exportFullPrayersConfigFile() {
+            const fileContent = "/**\n * קובץ הגדרות לוח בית הכנסת — נוצר אוטומטית ממערכת הניהול\n */\nwindow.PRAYERS_CONFIG = " + 
+                JSON.stringify(currentConfig, null, 4) + ";\n";
+            const dataStr = "data:text/javascript;charset=utf-8," + encodeURIComponent(fileContent);
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", "prayers_config.js");
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            showToast("קובץ prayers_config.js הורד בהצלחה!", "success");
+        }
+
+        // ── TAB 5: FIREBASE CLOUD SYNC ──────────────────────────────
+        const DEFAULT_FIREBASE_CONFIG = {
+            projectId: "yefenof-b90a0",
+            appId: "1:173621535861:web:2a347a5ed3e5cf2544443c",
+            storageBucket: "yefenof-b90a0.firebasestorage.app",
+            apiKey: "AIzaSyDbepCS0E86kok8zjR33u_UGR3oyAKgXSs",
+            authDomain: "yefenof-b90a0.firebaseapp.com",
+            messagingSenderId: "173621535861"
+        };
+
+        function getEffectiveFirebaseConfig() {
+            const savedFb = localStorage.getItem('SYNAGOGUE_FIREBASE_CONFIG');
+            if (savedFb) {
+                try {
+                    const cfg = JSON.parse(savedFb);
+                    if (cfg && cfg.projectId && cfg.apiKey) return cfg;
+                } catch (e) {}
+            }
+            return DEFAULT_FIREBASE_CONFIG;
+        }
+
+        function loadFirebaseSettingsForm() {
+            const cfg = getEffectiveFirebaseConfig();
+            document.getElementById('fbApiKey').value = cfg.apiKey || '';
+            document.getElementById('fbAuthDomain').value = cfg.authDomain || '';
+            document.getElementById('fbProjectId').value = cfg.projectId || '';
+            document.getElementById('fbStorageBucket').value = cfg.storageBucket || '';
+            document.getElementById('fbMessagingSenderId').value = cfg.messagingSenderId || '';
+            document.getElementById('fbAppId').value = cfg.appId || '';
+        }
+
+        function initFirebase() {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+
+            const fbConfig = getEffectiveFirebaseConfig();
+            if (!fbConfig || !fbConfig.projectId || !fbConfig.apiKey) {
+                statusDot.className = 'status-dot offline';
+                statusText.textContent = 'מצב מקומי (ללא ענן)';
+                isCloudConnected = false;
+                return;
+            }
+
+            try {
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(fbConfig);
+                }
+                firestoreDb = firebase.firestore();
+                
+                // Real-time listener
+                firestoreDb.collection('synagogue').doc('mainConfig')
+                    .onSnapshot((doc) => {
+                        statusDot.className = 'status-dot online';
+                        statusText.textContent = 'מחובר לענן בזמן אמת 🟢';
+                        isCloudConnected = true;
+
+                        if (doc.exists) {
+                            const cloudData = doc.data();
+                            const baseVersion = (window.PRAYERS_CONFIG && window.PRAYERS_CONFIG.configVersion) || 0;
+                            if ((cloudData.configVersion || 0) >= baseVersion) {
+                                console.log("☁️ Firestore snapshot received:", cloudData);
+                                currentConfig = { ...currentConfig, ...cloudData };
+                                try {
+                                    localStorage.setItem('SYNAGOGUE_PRAYERS_CONFIG', JSON.stringify(currentConfig));
+                                } catch (e) {}
+                                updateBadges();
+                                renderMemorials();
+                                renderWeekdayPrayersTable();
+                                renderShabbatPrayersTable();
+                                renderSlideSettings();
+                            } else {
+                                console.log("☁️ Local prayers_config.js is newer than cloud; syncing to Firebase...");
+                                syncConfigToFirestore();
+                            }
+                        } else {
+                            // First time initialization in Firestore
+                            syncConfigToFirestore();
+                        }
+                    }, (error) => {
+                        console.warn("Firestore listener error:", error);
+                        statusDot.className = 'status-dot error';
+                        statusText.textContent = 'שגיאת חיבור לענן';
+                        isCloudConnected = false;
+                    });
+
+            } catch (err) {
+                console.error("Firebase init error:", err);
+                statusDot.className = 'status-dot error';
+                statusText.textContent = 'שגיאת הגדרות ענן';
+                isCloudConnected = false;
+            }
+        }
+
+        function saveFirebaseSettings() {
+            const cfg = {
+                apiKey: document.getElementById('fbApiKey').value.trim(),
+                authDomain: document.getElementById('fbAuthDomain').value.trim(),
+                projectId: document.getElementById('fbProjectId').value.trim(),
+                storageBucket: document.getElementById('fbStorageBucket').value.trim(),
+                messagingSenderId: document.getElementById('fbMessagingSenderId').value.trim(),
+                appId: document.getElementById('fbAppId').value.trim()
+            };
+
+            if (!cfg.apiKey || !cfg.projectId) {
+                alert("אנא הזן לפחות apiKey ו-projectId");
+                return;
+            }
+
+            localStorage.setItem('SYNAGOGUE_FIREBASE_CONFIG', JSON.stringify(cfg));
+            showToast("הגדרות Firebase נשמרו!", "success");
+            initFirebase();
+        }
+
+        function testFirebaseConnection() {
+            saveFirebaseSettings();
+            if (firestoreDb) {
+                firestoreDb.collection('synagogue').doc('mainConfig').get()
+                    .then((doc) => {
+                        if (doc.exists) {
+                            showToast("חיבור ל-Firebase תקין והמסמך קיים!", "success");
+                        } else {
+                            showToast("חיבור תקין! מעלה נתונים ראשוניים...", "info");
+                            syncConfigToFirestore();
+                        }
+                    })
+                    .catch((err) => {
+                        showToast(`שגיאת התחברות: ${err.message}`, "error");
+                    });
+            }
+        }
+
+        function syncConfigToFirestore(customSuccessMsg) {
+            if (!firestoreDb) {
+                if (customSuccessMsg) showToast(customSuccessMsg + " (נשמר מקומית)", "success");
+                return;
+            }
+            firestoreDb.collection('synagogue').doc('mainConfig').set(currentConfig)
+                .then(() => {
+                    console.log("☁️ Cloud updated successfully");
+                    const statusDot = document.getElementById('statusDot');
+                    const statusText = document.getElementById('statusText');
+                    if (statusDot) statusDot.className = 'status-dot online';
+                    if (statusText) statusText.textContent = 'מחובר לענן בזמן אמת 🟢';
+                    isCloudConnected = true;
+                    if (customSuccessMsg) {
+                        showToast(customSuccessMsg, "success");
+                    }
+                })
+                .catch((err) => {
+                    console.error("Failed to sync cloud:", err);
+                    showToast(`נשמר מקומית, אך חלה שגיאה בסנכרון לענן: ${err.message}`, "error");
+                });
+        }
+
+        function uploadInitialDataToFirestore() {
+            if (!firestoreDb) {
+                alert("אנא הזן תחילה את פרטי ה-Firebase ולחץ 'שמור הגדרות ענן'");
+                return;
+            }
+
+            if (confirm("האם להעלות את כל הנתונים הנוכחיים (כולל 502 הנפטרים וזמני התפילות) לענן Firebase?")) {
+                syncConfigToFirestore("כל המידע סונכרן לענן בהצלחה! 🚀");
+            }
+        }
+
+        function syncAllToCloud() {
+            currentConfig.shabbatMainTitle = document.getElementById('shabbatTitleInput').value.trim();
+            currentConfig.shabbatParasha = document.getElementById('shabbatParashaInput').value.trim();
+            saveConfigLocal();
+            syncConfigToFirestore("כל הזמנים והנתונים עודכנו בלוח בית הכנסת בהצלחה! 🚀");
+        }
+
+        // ── Run on load ─────────────────────────────────────────────
+        window.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,3159 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light only">
+    <meta name="supported-color-schemes" content="light">
+    <title>לוח בית כנסת</title>
+    <!-- Google Fonts for authentic typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800;900&family=Cinzel:wght@500;700;900&family=Frank+Ruhl+Libre:wght@400;700;900&display=swap" rel="stylesheet">
+    <!-- Synagogue Offline Prayers Configuration -->
+    <script src="prayers_config.js"></script>
+    <!-- Standalone Offline QR Code Generator -->
+    <script src="qrcode_engine.js"></script>
+    <!-- Firebase SDKs (for optional real-time cloud sync with admin panel) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root {
+            color-scheme: light only;
+            supported-color-schemes: light;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            color-scheme: light only;
+            width: 100vw;
+            height: 100vh;
+            max-width: 100vw;
+            max-height: 100vh;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            font-family: 'Assistant', 'Frank Ruhl Libre', sans-serif;
+            direction: rtl;
+        }
+
+        body {
+            position: relative;
+            background-image: url('background_SG_name.jpeg');
+            background-size: 100% 100%;
+            background-position: center center;
+            background-repeat: no-repeat;
+        }
+
+        /* ══════════════════════════════════════════════════════════════
+           LEFT SIDEBAR (Blue Framed Panel)
+        ══════════════════════════════════════════════════════════════ */
+        .left-sidebar {
+            position: absolute;
+            top: 4.5vh;
+            left: 3.4vw;
+            width: 19.5vw;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            z-index: 10;
+        }
+
+        /* ── Prominent Gold Analog Clock (Enlarged) ──────────────────── */
+        .clock-container {
+            width: 14.5vw;
+            height: 14.5vw;
+            border-radius: 50%;
+            user-select: none;
+            flex-shrink: 0;
+            margin-bottom: 0.8vh;
+            box-shadow:
+                0 1.0vw 2.5vw rgba(0, 0, 0, 0.9),
+                0 0.4vw 1.0vw rgba(0, 0, 0, 0.7),
+                inset 0 0 1.0vw rgba(0, 0, 0, 0.5),
+                0 0 1.6vw rgba(212, 175, 55, 0.35);
+        }
+
+        .analog-clock-svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+            filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
+        }
+
+        .hand, .second-hand {
+            transform-origin: 160px 160px;
+        }
+
+        /* ── Date Section ────────────────────────────────────────────── */
+        .dates-section {
+            text-align: center;
+            width: 100%;
+            margin-bottom: 0.2vh;
+        }
+
+        .hebrew-date {
+            font-size: 1.25vw;
+            font-weight: 800;
+            color: #ebd078;
+            letter-spacing: 0.5px;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.95), 0 0 10px rgba(235, 208, 120, 0.4);
+            margin-bottom: 0.1vh;
+        }
+
+        .secular-date {
+            font-size: 0.86vw;
+            font-weight: 600;
+            color: #d6e2f5;
+            letter-spacing: 0.3px;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+        }
+
+        /* ── Gold Star Divider ───────────────────────────────────────── */
+        .star-divider {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 88%;
+            margin: 0.3vh 0 0.4vh 0;
+        }
+
+        .star-divider::before,
+        .star-divider::after {
+            content: '';
+            flex: 1;
+            height: 1.5px;
+            background: linear-gradient(to right, transparent, #cfa846 50%, #f7df8b);
+        }
+
+        .star-divider::after {
+            background: linear-gradient(to left, transparent, #cfa846 50%, #f7df8b);
+        }
+
+        .star-icon {
+            color: #f3d474;
+            font-size: 0.85vw;
+            padding: 0 0.4vw;
+            text-shadow: 0 0 8px rgba(243, 212, 116, 0.8);
+            line-height: 1;
+        }
+
+        /* ── Zmanim Title ────────────────────────────────────────────── */
+        .zmanim-title {
+            font-size: 1.25vw;
+            font-weight: 900;
+            color: #ebd078;
+            letter-spacing: 1px;
+            text-align: center;
+            margin-bottom: 0.5vh;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.95), 0 0 10px rgba(235, 208, 120, 0.3);
+        }
+
+        /* ── 8 Zmanim Seamless List (Eitim Lebina) ──────────────────── */
+        .zmanim-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2vh;
+            width: 95%;
+        }
+
+        .zman-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            height: 3.15vh;
+            padding: 0 0.3vw;
+            background: transparent;
+            border-radius: 0;
+            box-shadow: none;
+            border: none;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.24);
+        }
+
+        .zman-item:last-child {
+            border-bottom: none;
+        }
+
+        .zman-name {
+            font-size: 0.94vw;
+            font-weight: 800;
+            color: #ffffff;
+            letter-spacing: 0.2px;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+            white-space: nowrap;
+        }
+
+        .zman-time {
+            font-size: 1.15vw;
+            font-weight: 900;
+            color: #f7d474;
+            font-family: 'Assistant', monospace, sans-serif;
+            direction: ltr;
+            letter-spacing: 0.5px;
+            text-shadow:
+                0 2px 4px rgba(0, 0, 0, 0.95),
+                0 0 8px rgba(247, 212, 116, 0.45);
+            white-space: nowrap;
+        }
+
+        .zman-time-dual {
+            font-size: 0.92vw;
+            letter-spacing: 0;
+        }
+
+        /* ══════════════════════════════════════════════════════════════
+           MAIN INNER GATE (מודעות מתחלפות - תחום בתוך השער בלבד)
+        ══════════════════════════════════════════════════════════════ */
+        .main-stage-container {
+            position: absolute;
+            top: 21.5vh;
+            left: 37.0vw;
+            width: 51.0vw;
+            height: 62.0vh;
+            z-index: 10;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        .slide-page {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            padding: 1.0vh 1.8vw;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.7s ease-in-out, visibility 0.7s ease-in-out;
+            pointer-events: none;
+        }
+
+        .slide-page.active-slide {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+
+        /* ── Slide Header ────────────────────────────────────────────── */
+        .slide-header-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 1.0vh;
+            flex-shrink: 0;
+        }
+
+        .slide-title-text {
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 2.35vw;
+            font-weight: 900;
+            color: #0e2753;
+            letter-spacing: 2px;
+            text-shadow:
+                0 1px 2px rgba(255, 255, 255, 0.9),
+                0 0 15px rgba(200, 160, 60, 0.35);
+            line-height: 1.1;
+        }
+
+        .slide-title-divider {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 75%;
+            margin-top: 0.5vh;
+        }
+
+        .slide-title-divider::before,
+        .slide-title-divider::after {
+            content: '';
+            flex: 1;
+            height: 1.5px;
+            background: linear-gradient(to right, transparent, #cfa846, #7a5010);
+        }
+
+        .slide-title-divider::after {
+            background: linear-gradient(to left, transparent, #cfa846, #7a5010);
+        }
+
+        .slide-divider-gem {
+            color: #b58524;
+            font-size: 1.1vw;
+            padding: 0 0.8vw;
+            text-shadow: 0 0 6px rgba(212, 175, 55, 0.9);
+        }
+
+        /* ── Seamless Rows List ──────────────────────────────────────── */
+        .prayers-list-seamless {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            gap: 0.15vh;
+            margin-top: 0.4vh;
+            flex: 1;
+            justify-content: space-evenly;
+        }
+
+        .prayer-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            padding: 0.7vh 0.9vw;
+            border-bottom: 1.5px solid rgba(190, 150, 60, 0.35);
+            background: transparent;
+        }
+
+        .prayer-row:last-child {
+            border-bottom: none;
+        }
+
+        .prayer-info {
+            display: flex;
+            align-items: baseline;
+            gap: 1.0vw;
+        }
+
+        .prayer-bullet-icon {
+            color: #a8781a;
+            font-size: 1.2vw;
+            text-shadow: 0 0 5px rgba(200, 150, 50, 0.7);
+        }
+
+        .prayer-label {
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 1.8vw;
+            font-weight: 900;
+            color: #0c214d;
+            letter-spacing: 0.5px;
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.9);
+            min-width: 6.8vw;
+        }
+
+        .prayer-desc {
+            font-family: 'Assistant', sans-serif;
+            font-size: 1.35vw;
+            font-weight: 700;
+            color: #2b1d0a;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.8);
+        }
+
+        .prayer-time-value {
+            font-family: 'Assistant', monospace, sans-serif;
+            font-size: 1.8vw;
+            font-weight: 900;
+            color: #0e2753;
+            direction: ltr;
+            letter-spacing: 1px;
+            text-shadow:
+                0 1px 2px rgba(255, 255, 255, 0.95),
+                0 0 8px rgba(200, 160, 60, 0.4);
+            min-width: 6vw;
+            text-align: center;
+        }
+
+        .prayer-time-text {
+            font-family: 'Assistant', sans-serif;
+            font-size: 1.25vw;
+            font-weight: 800;
+            color: #6e480e;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.8);
+        }
+
+        /* ── Specialized compact sizing for Slide 2 (Shabbat - 8 items) ── */
+        #slide2 .slide-header-section {
+            margin-bottom: 0.4vh;
+        }
+
+        #slide2 .prayers-list-seamless {
+            margin-top: 0.2vh;
+            gap: 0;
+        }
+
+        #slide2 .prayer-row {
+            padding: 0.42vh 0.8vw;
+        }
+
+        #slide2 .prayer-label {
+            font-size: 1.55vw;
+            min-width: 6.2vw;
+        }
+
+        #slide2 .prayer-desc {
+            font-size: 1.22vw;
+        }
+
+        #slide2 .prayer-time-value {
+            font-size: 1.55vw;
+            min-width: 5.2vw;
+        }
+
+        #slide2 .prayer-bullet-icon {
+            font-size: 1.0vw;
+        }
+
+        /* ── Slide 3: Kollel Announcement Poster ───────────────────────── */
+        .kollel-card-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            justify-content: space-evenly;
+            align-items: center;
+            box-sizing: border-box;
+            padding: 0.2vh 0.5vw;
+        }
+
+        .kollel-time-pill {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1.2vw;
+            background: transparent;
+            border: 1.5px solid rgba(190, 150, 60, 0.7);
+            border-radius: 30px;
+            padding: 0.65vh 2.4vw;
+            box-shadow: none;
+            color: #0c214d;
+        }
+
+        .kollel-time-pill .pill-days {
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 1.5vw;
+            font-weight: 800;
+            color: #7a5010;
+            letter-spacing: 0.5px;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.9);
+        }
+
+        .kollel-time-pill .pill-divider {
+            color: #d4af37;
+            font-size: 1.1vw;
+            text-shadow: 0 0 6px rgba(212, 175, 55, 0.8);
+        }
+
+        .kollel-time-pill .pill-hours {
+            font-family: 'Assistant', monospace, sans-serif;
+            font-size: 1.7vw;
+            font-weight: 900;
+            color: #0c214d;
+            direction: ltr;
+            letter-spacing: 1px;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.9);
+        }
+
+        .kollel-curriculum-box {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 0.7vh;
+            background: transparent;
+            border: none;
+            border-top: 1.5px solid rgba(190, 150, 60, 0.35);
+            border-bottom: 1.5px solid rgba(190, 150, 60, 0.35);
+            border-radius: 0;
+            padding: 1.0vh 1.4vw;
+            box-shadow: none;
+            backdrop-filter: none;
+        }
+
+        .kollel-subject-row {
+            display: flex;
+            align-items: baseline;
+            gap: 0.8vw;
+            line-height: 1.35;
+        }
+
+        .kollel-subject-bullet {
+            color: #b58524;
+            font-size: 1.1vw;
+            flex-shrink: 0;
+            text-shadow: 0 0 5px rgba(212, 175, 55, 0.6);
+        }
+
+        .kollel-subject-title {
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 1.45vw;
+            font-weight: 900;
+            color: #0c214d;
+            min-width: 6.8vw;
+            flex-shrink: 0;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.9);
+        }
+
+        .kollel-subject-desc {
+            font-family: 'Assistant', sans-serif;
+            font-size: 1.35vw;
+            font-weight: 700;
+            color: #2b1d0a;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.8);
+        }
+
+        .kollel-rabbi-card {
+            width: 100%;
+            background: transparent;
+            border: 1.5px solid rgba(190, 150, 60, 0.45);
+            border-radius: 12px;
+            padding: 0.8vh 1.2vw;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            box-shadow: none;
+        }
+
+        .kollel-rabbi-prefix {
+            font-family: 'Assistant', sans-serif;
+            font-size: 1.1vw;
+            font-weight: 700;
+            color: #7a5010;
+            letter-spacing: 0.5px;
+            line-height: 1.2;
+        }
+
+        .kollel-rabbi-name {
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 1.75vw;
+            font-weight: 900;
+            color: #0b1f48;
+            letter-spacing: 0.5px;
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.9), 0 0 10px rgba(212, 175, 55, 0.35);
+            line-height: 1.25;
+            margin: 0.2vh 0;
+        }
+
+        .kollel-rabbi-title {
+            font-family: 'Assistant', sans-serif;
+            font-size: 1.2vw;
+            font-weight: 700;
+            color: #4a3413;
+            line-height: 1.2;
+        }
+
+        .kollel-footer-strip {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.4vh 0.8vw 0 0.8vw;
+            border-top: 1.5px dashed rgba(190, 150, 60, 0.45);
+        }
+
+        .kollel-footer-contact {
+            font-family: 'Assistant', sans-serif;
+            font-size: 1.3vw;
+            font-weight: 800;
+            color: #0e2753;
+            display: flex;
+            align-items: center;
+            gap: 0.5vw;
+        }
+
+        .kollel-footer-note {
+            font-family: 'Assistant', sans-serif;
+            font-size: 1.2vw;
+            font-weight: 800;
+            color: #875c12;
+            background: transparent;
+            border: 1px solid rgba(190, 150, 60, 0.45);
+            border-radius: 12px;
+            padding: 0.2vh 0.8vw;
+        }
+
+        /* ── Slide 4: Memorial Rows ──────────────────────────────────── */
+        .memorial-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: calc(100% - 5.5vh);
+            gap: 0.2vh;
+            margin-top: 0.5vh;
+            flex: 1;
+            justify-content: space-evenly;
+            transition: opacity 0.35s ease-in-out;
+            opacity: 1;
+        }
+
+        .memorial-container.fade-out {
+            opacity: 0;
+        }
+
+        .memorial-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            padding: 1.1vh 1.0vw;
+            border-bottom: 1.5px solid rgba(190, 150, 60, 0.35);
+            background: transparent;
+        }
+
+        .memorial-row:last-child {
+            border-bottom: none;
+        }
+
+        .memorial-info {
+            display: flex;
+            align-items: center;
+            gap: 1.0vw;
+        }
+
+        .candle-icon {
+            font-size: 1.3vw;
+            filter: drop-shadow(0 0 6px #ffbe3b);
+            line-height: 1;
+        }
+
+        .deceased-name {
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 1.8vw;
+            font-weight: 900;
+            color: #0c214d;
+            letter-spacing: 0.5px;
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.9);
+        }
+
+        .deceased-relation {
+            font-family: 'Assistant', sans-serif;
+            font-size: 1.35vw;
+            font-weight: 700;
+            color: #2b1d0a;
+        }
+
+        .deceased-date {
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 1.55vw;
+            font-weight: 800;
+            color: #7a5010;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.8);
+        }
+
+        /* ── Pagination Indicator Bar ────────────────────────────────── */
+        .memorial-pagination-bar {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 2.5vh;
+            margin-top: 0.5vh;
+        }
+
+        .memorial-page-dots {
+            display: flex;
+            gap: 0.6vw;
+            align-items: center;
+            padding: 0.3vh 0.8vw;
+            background: rgba(255, 255, 255, 0.45);
+            border: 1px solid rgba(190, 150, 60, 0.35);
+            border-radius: 12px;
+            backdrop-filter: blur(4px);
+        }
+
+        .memorial-page-dot {
+            width: 0.55vw;
+            height: 0.55vw;
+            border-radius: 50%;
+            background: rgba(180, 140, 50, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .memorial-page-dot.active-dot {
+            background: #0e2753;
+            transform: scale(1.4);
+            box-shadow: 0 0 6px rgba(212, 175, 55, 0.9);
+        }
+
+        /* ── Slide 8: Condolences Notice (מודעת השתתפות בצער) ─────────── */
+        .condolence-layout {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: calc(100% - 4.8vh);
+            box-sizing: border-box;
+            padding: 0 0.4vw;
+        }
+
+        .condolence-card {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            padding: 0.2vh 0.8vw;
+            box-sizing: border-box;
+            text-align: center;
+            gap: 0.4vh;
+        }
+
+        .condolence-candle-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            margin-bottom: -0.2vh;
+        }
+
+        .condolence-candle {
+            font-size: 2.0vw;
+            filter: drop-shadow(0 0 10px #ffbe3b);
+            animation: candleFlicker 2.5s infinite ease-in-out alternate;
+        }
+
+        @keyframes candleFlicker {
+            0% { transform: scale(1); filter: drop-shadow(0 0 8px #ffbe3b); }
+            50% { transform: scale(1.08); filter: drop-shadow(0 0 14px #ffd768); }
+            100% { transform: scale(0.96); filter: drop-shadow(0 0 9px #ffb326); }
+        }
+
+        .condolence-intro-text {
+            font-family: 'Assistant', sans-serif;
+            font-size: 1.15vw;
+            font-weight: 700;
+            color: #2b1d0a;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.9);
+            line-height: 1.25;
+        }
+
+        .condolence-mourner-name {
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 1.35vw;
+            font-weight: 900;
+            color: #0c214d;
+            letter-spacing: 0.4px;
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.95);
+            line-height: 1.25;
+        }
+
+        .condolence-relation-text {
+            font-family: 'Assistant', sans-serif;
+            font-size: 1.1vw;
+            font-weight: 700;
+            color: #6e480e;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.9);
+        }
+
+        .condolence-deceased-box {
+            background: rgba(14, 39, 83, 0.05);
+            border: 1.8px solid rgba(190, 150, 60, 0.65);
+            border-radius: 12px;
+            padding: 0.35vh 2.0vw;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            display: inline-block;
+        }
+
+        .condolence-deceased-name {
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 2.1vw;
+            font-weight: 900;
+            color: #0c214d;
+            letter-spacing: 0.8px;
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.95), 0 0 10px rgba(212, 175, 55, 0.4);
+            white-space: nowrap;
+        }
+
+        .condolence-funeral-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6vw;
+            background: rgba(255, 255, 255, 0.35);
+            border: 1px solid rgba(190, 150, 60, 0.45);
+            border-radius: 8px;
+            padding: 0.35vh 1.0vw;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .funeral-title-badge {
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 1.05vw;
+            font-weight: 900;
+            color: #0c214d;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.9);
+            white-space: nowrap;
+        }
+
+        .funeral-details-text {
+            font-family: 'Assistant', sans-serif;
+            font-size: 1.02vw;
+            font-weight: 700;
+            color: #2b1d0a;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.9);
+            line-height: 1.25;
+        }
+
+        .condolence-shiva-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6vw;
+            background: rgba(255, 255, 255, 0.25);
+            border-top: 1px dashed rgba(190, 150, 60, 0.55);
+            border-bottom: 1px dashed rgba(190, 150, 60, 0.55);
+            border-left: none;
+            border-right: none;
+            border-radius: 0;
+            padding: 0.35vh 1.0vw;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .shiva-title-badge {
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 1.05vw;
+            font-weight: 900;
+            color: #0c214d;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.9);
+            white-space: nowrap;
+        }
+
+        .shiva-details-text {
+            font-family: 'Assistant', sans-serif;
+            font-size: 1.02vw;
+            font-weight: 700;
+            color: #2b1d0a;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            gap: 0.6vw;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .shiva-details-text strong {
+            color: #0e2753;
+        }
+
+        .shiva-sep {
+            color: #be963c;
+            font-weight: 900;
+        }
+
+        .condolence-mourners-signature {
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 1.05vw;
+            font-weight: 800;
+            color: #0e2753;
+            letter-spacing: 0.3px;
+        }
+
+        .condolence-blessing-text {
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 1.15vw;
+            font-weight: 900;
+            color: #7a5010;
+            letter-spacing: 0.3px;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.9);
+            border-top: 1.5px dashed rgba(190, 150, 60, 0.45);
+            width: 100%;
+            padding-top: 0.4vh;
+        }
+
+        /* ── Slide 5: Donations & QRs (Two Unified Sections) ─────────── */
+        .donations-layout {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            justify-content: space-between;
+            width: 100%;
+            height: calc(100% - 4.8vh);
+            gap: 0.8vh;
+            box-sizing: border-box;
+            padding: 0.2vh 0.6vw;
+        }
+
+        .donations-section {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+
+        .section-badge-header {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding-bottom: 0.3vh;
+            margin-bottom: 0.4vh;
+            border-bottom: 1.5px solid rgba(190, 150, 60, 0.4);
+        }
+
+        .section-header-title {
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 1.25vw;
+            font-weight: 900;
+            color: #0c214d;
+            letter-spacing: 0.5px;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.8);
+        }
+
+        /* Bank Section Rows */
+        .bank-details-rows {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            gap: 0.3vh;
+        }
+
+        .bank-row-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            padding: 0.35vh 0.4vw;
+            border-bottom: 1px dashed rgba(190, 150, 60, 0.3);
+            box-sizing: border-box;
+        }
+
+        .bank-row-item:last-child {
+            border-bottom: none;
+        }
+
+        .bank-col {
+            display: flex;
+            align-items: center;
+            gap: 0.4vw;
+        }
+
+        .cell-label {
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 1.15vw;
+            font-weight: 900;
+            color: #0c214d;
+            white-space: nowrap;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.8);
+        }
+
+        .cell-val {
+            font-family: 'Assistant', sans-serif;
+            font-size: 1.15vw;
+            font-weight: 800;
+            color: #6e480e;
+            white-space: nowrap;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.8);
+        }
+
+        .cell-val.acct-num {
+            font-family: 'Assistant', monospace, sans-serif;
+            font-size: 1.55vw;
+            font-weight: 900;
+            color: #0c214d;
+            letter-spacing: 1.2px;
+            direction: ltr;
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.95), 0 0 8px rgba(200, 160, 60, 0.35);
+        }
+
+        .cell-val.tax-text {
+            color: #14532d;
+            font-size: 1.05vw;
+            font-weight: 800;
+        }
+
+        .donations-bottom-contact {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 0.6vh 0 0.2vh 0;
+            border-top: 1.5px dashed rgba(190, 150, 60, 0.4);
+            gap: 0.5vw;
+            box-sizing: border-box;
+            margin-top: 0.2vh;
+        }
+
+        .contact-label {
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 1.2vw;
+            font-weight: 900;
+            color: #0c214d;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.8);
+        }
+
+        .contact-val {
+            font-family: 'Assistant', sans-serif;
+            font-size: 1.2vw;
+            font-weight: 800;
+            color: #7a5010;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.8);
+        }
+
+        /* QRs Section */
+        .qrs-row-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            gap: 1.2vw;
+            padding: 0.2vh 0.2vw;
+            box-sizing: border-box;
+        }
+
+        .qr-col-item {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 0.7vw;
+            background: transparent;
+            padding: 0.2vh 0.2vw;
+            box-sizing: border-box;
+        }
+
+        .qr-frame-box {
+            width: 7.2vw;
+            height: 7.2vw;
+            min-width: 7.2vw;
+            max-width: 7.2vw;
+            min-height: 7.2vw;
+            max-height: 7.2vw;
+            background: #ffffff;
+            padding: 0.3vw;
+            border-radius: 10px;
+            border: 2px solid #cfa846;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            flex-shrink: 0;
+        }
+
+        .qr-frame-box svg,
+        .qr-code-svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .qr-info-box {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+            gap: 0.3vh;
+            text-align: right;
+        }
+
+        .qr-title-text {
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 1.18vw;
+            font-weight: 900;
+            color: #0c214d;
+            letter-spacing: 0.2px;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.8);
+            line-height: 1.25;
+            white-space: nowrap;
+        }
+
+        .qr-sub-text {
+            font-family: 'Assistant', sans-serif;
+            font-size: 0.92vw;
+            font-weight: 700;
+            color: #6e480e;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.8);
+            line-height: 1.3;
+            white-space: nowrap;
+        }
+
+        /* ══════════════════════════════════════════════════════════════
+           BOTTOM SEAMLESS CONVEYOR-BELT MARQUEE (סרט נע רציף ללא הפסקה)
+        ══════════════════════════════════════════════════════════════ */
+        .bottom-marquee-container {
+            position: absolute;
+            bottom: 5.2vh;
+            left: 2.5vw;
+            width: 95vw;
+            height: 7.0vh;
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+            z-index: 100;
+            pointer-events: none;
+            contain: layout paint;
+            direction: ltr;
+        }
+
+        .marquee-track {
+            display: flex;
+            align-items: center;
+            height: 100%;
+            width: max-content;
+            will-change: transform;
+            transform: translate3d(0, 0, 0);
+            backface-visibility: hidden;
+            animation: ticker-conveyor-ltr 52s linear infinite;
+        }
+
+        .marquee-content {
+            display: flex;
+            align-items: center;
+            height: 100%;
+            white-space: nowrap;
+            flex-shrink: 0;
+            transform: translateZ(0);
+            direction: rtl;
+        }
+
+        @keyframes ticker-conveyor-ltr {
+            0% {
+                transform: translate3d(-50%, 0, 0);
+            }
+            100% {
+                transform: translate3d(0%, 0, 0);
+            }
+        }
+
+        .saying-item {
+            font-size: 2.25vw;
+            font-weight: 900;
+            color: #1e0f00;
+            letter-spacing: 0.8px;
+            line-height: 1;
+            text-shadow:
+                0 1px 2px rgba(255, 248, 220, 0.95),
+                0 0 2px rgba(80, 45, 5, 0.3);
+            font-family: 'Assistant', 'Frank Ruhl Libre', sans-serif;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        /* ══════════════════════════════════════════════════════════════
+           SLIDE 6: שבת שובה — פרשת האזינו ודרשת שבת שובה
+        ══════════════════════════════════════════════════════════════ */
+        .shabbat-shuva-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: calc(100% - 4.8vh);
+            gap: 0.8vh;
+            margin-top: 0.2vh;
+            justify-content: space-between;
+            box-sizing: border-box;
+        }
+
+        .shuva-prayers-strip {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.6vw;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .shuva-prayer-pill {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.25);
+            border: 1.5px solid rgba(190, 150, 60, 0.45);
+            border-radius: 8px;
+            padding: 0.4vh 0.4vw;
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        .shuva-prayer-name {
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 1.08vw;
+            font-weight: 900;
+            color: #0c214d;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.9);
+            white-space: nowrap;
+        }
+
+        .shuva-prayer-time {
+            font-family: 'Assistant', monospace, sans-serif;
+            font-size: 1.25vw;
+            font-weight: 900;
+            color: #7a5010;
+            direction: ltr;
+            letter-spacing: 0.5px;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.9);
+            margin-top: 0.1vh;
+            white-space: nowrap;
+        }
+
+        .shuva-drasha-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(245, 235, 215, 0.55) 100%);
+            border: 2px solid #be963c;
+            border-radius: 12px;
+            padding: 1.0vh 1.4vw;
+            width: 100%;
+            box-sizing: border-box;
+            text-align: center;
+            box-shadow: 0 3px 12px rgba(190, 150, 60, 0.18);
+            gap: 0.4vh;
+        }
+
+        .shuva-drasha-badge {
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 1.25vw;
+            font-weight: 900;
+            color: #7a5010;
+            letter-spacing: 0.5px;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.9);
+        }
+
+        .shuva-drasha-topic {
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 2.2vw;
+            font-weight: 900;
+            color: #0c214d;
+            letter-spacing: 0.8px;
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.95), 0 0 10px rgba(212, 175, 55, 0.35);
+            line-height: 1.2;
+        }
+
+        .shuva-drasha-speaker {
+            font-family: 'Assistant', sans-serif;
+            font-size: 1.35vw;
+            font-weight: 800;
+            color: #14356e;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.9);
+        }
+
+        .shuva-drasha-title {
+            font-family: 'Assistant', sans-serif;
+            font-size: 1.1vw;
+            font-weight: 700;
+            color: #4a3413;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.9);
+        }
+
+        .shuva-drasha-time {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4vw;
+            background: rgba(14, 39, 83, 0.08);
+            border: 1px dashed rgba(190, 150, 60, 0.6);
+            border-radius: 20px;
+            padding: 0.3vh 1.0vw;
+            font-family: 'Assistant', sans-serif;
+            font-size: 1.15vw;
+            font-weight: 800;
+            color: #0c214d;
+            margin-top: 0.2vh;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.9);
+        }
+
+        .holiday-blessing-strip {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: 1.5px solid #cfa846;
+            border-radius: 9px;
+            padding: 0.4vh 1.0vw;
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 1.18vw;
+            font-weight: 900;
+            color: #0c214d;
+            letter-spacing: 0.5px;
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.9), 0 0 10px rgba(212, 175, 55, 0.35);
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        /* ══════════════════════════════════════════════════════════════
+           SLIDE 7: זמני תפילות יום הכיפורים (Yom Kippur Schedule)
+        ══════════════════════════════════════════════════════════════ */
+        .yk-schedule-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: calc(100% - 4.5vh);
+            gap: 0.45vh;
+            margin-top: 0.1vh;
+            justify-content: space-between;
+            box-sizing: border-box;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .yk-verse-box {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(90deg, rgba(190, 150, 60, 0) 0%, rgba(190, 150, 60, 0.22) 50%, rgba(190, 150, 60, 0) 100%);
+            border-top: 1px solid rgba(190, 150, 60, 0.4);
+            border-bottom: 1px solid rgba(190, 150, 60, 0.4);
+            padding: 0.25vh 0.5vw;
+            box-sizing: border-box;
+            flex-shrink: 0;
+        }
+
+        .yk-verse-text {
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 1.15vw;
+            font-weight: 900;
+            color: #0c214d;
+            letter-spacing: 0.3px;
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.95);
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .yk-columns-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.6vw;
+            width: 100%;
+            flex: 1;
+            box-sizing: border-box;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .yk-column-card {
+            display: flex;
+            flex-direction: column;
+            background: rgba(255, 255, 255, 0.22);
+            border: 1.5px solid rgba(190, 150, 60, 0.45);
+            border-radius: 10px;
+            padding: 0.45vh 0.55vw;
+            box-sizing: border-box;
+            justify-content: space-between;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .yk-column-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding-bottom: 0.25vh;
+            margin-bottom: 0.25vh;
+            border-bottom: 1.5px solid rgba(190, 150, 60, 0.35);
+            text-align: center;
+            min-width: 0;
+            flex-shrink: 0;
+        }
+
+        .yk-column-title {
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 1.05vw;
+            font-weight: 900;
+            color: #7a5010;
+            letter-spacing: 0.2px;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.9);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .yk-events-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3vh;
+            flex: 1;
+            justify-content: space-evenly;
+            min-width: 0;
+        }
+
+        .yk-event-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.4vw;
+            padding: 0.2vh 0.15vw;
+            border-bottom: 1px dashed rgba(190, 150, 60, 0.25);
+            box-sizing: border-box;
+            min-width: 0;
+        }
+
+        .yk-event-row:last-child {
+            border-bottom: none;
+        }
+
+        .yk-event-name-group {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.1vh;
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .yk-event-main-line {
+            display: flex;
+            align-items: center;
+            gap: 0.25vw;
+            width: 100%;
+            min-width: 0;
+        }
+
+        .yk-event-name {
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 0.96vw;
+            font-weight: 900;
+            color: #0c214d;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.9);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .yk-event-desc {
+            font-family: 'Assistant', sans-serif;
+            font-size: 0.82vw;
+            font-weight: 700;
+            color: #523a10;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.8);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+        }
+
+        .yk-event-time {
+            font-family: 'Assistant', monospace, sans-serif;
+            font-size: 1.05vw;
+            font-weight: 900;
+            color: #0c214d;
+            background: rgba(255, 255, 255, 0.6);
+            border: 1px solid rgba(190, 150, 60, 0.45);
+            border-radius: 4px;
+            padding: 0.1vh 0.35vw;
+            direction: ltr;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.9);
+            flex-shrink: 0;
+        }
+
+        .yk-banner-box {
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.28) 0%, rgba(255, 235, 160, 0.45) 50%, rgba(212, 175, 55, 0.28) 100%);
+            border: 1.5px solid rgba(190, 150, 60, 0.6);
+            border-radius: 6px;
+            padding: 0.4vh 0.5vw;
+            text-align: center;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+            margin: 0.1vh 0;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .yk-banner-title {
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 1.08vw;
+            font-weight: 900;
+            color: #7a1515;
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.9);
+            letter-spacing: 0.2px;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .yk-banner-subtitle {
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 0.98vw;
+            font-weight: 900;
+            color: #0c214d;
+            margin-top: 0.1vh;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .yk-note-box {
+            font-family: 'Assistant', sans-serif;
+            font-size: 0.82vw;
+            font-weight: 700;
+            color: #1e3a5f;
+            background: rgba(255, 255, 255, 0.55);
+            border: 1px dashed rgba(190, 150, 60, 0.5);
+            border-radius: 5px;
+            padding: 0.25vh 0.4vw;
+            text-align: center;
+            line-height: 1.2;
+            margin: 0.1vh 0;
+            min-width: 0;
+        }
+
+        .yk-bullet-dot {
+            color: #b8860b;
+            font-size: 0.85vw;
+            flex-shrink: 0;
+        }
+
+        .holiday-blessing-strip {
+            width: 100%;
+            background: linear-gradient(90deg, rgba(190, 150, 60, 0.05) 0%, rgba(190, 150, 60, 0.28) 50%, rgba(190, 150, 60, 0.05) 100%);
+            border: 1px solid rgba(190, 150, 60, 0.4);
+            border-radius: 6px;
+            padding: 0.3vh 0.5vw;
+            text-align: center;
+            font-family: 'Frank Ruhl Libre', serif;
+            font-size: 0.98vw;
+            font-weight: 900;
+            color: #0c214d;
+            box-sizing: border-box;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex-shrink: 0;
+        }
+        /* ── Subtle Admin Panel Link ────────────────────────── */
+        .admin-link-btn {
+            position: fixed;
+            bottom: 6px;
+            left: 6px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.2);
+            color: rgba(255, 255, 255, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            font-size: 13px;
+            z-index: 9999;
+            transition: all 0.3s ease;
+            opacity: 0.12;
+            cursor: pointer;
+        }
+        .admin-link-btn:hover {
+            opacity: 1;
+            background: rgba(15, 32, 56, 0.95);
+            color: #d4af37;
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+            transform: scale(1.15);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ═══════════════════════════════════════════════════════
+         LEFT SIDEBAR: CLOCK, DATES & JERUSALEM ZMANIM
+    ═══════════════════════════════════════════════════════ -->
+    <div class="left-sidebar">
+
+        <!-- 1. Analog Golden Clock (Enlarged) -->
+        <div class="clock-container" id="analogClock">
+            <svg class="analog-clock-svg" viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="goldOuterRing" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#fff0b8"/>
+                        <stop offset="25%" stop-color="#d4af37"/>
+                        <stop offset="50%" stop-color="#7a5518"/>
+                        <stop offset="75%" stop-color="#e8c86d"/>
+                        <stop offset="100%" stop-color="#543707"/>
+                    </linearGradient>
+
+                    <radialGradient id="goldInnerBezel" cx="45%" cy="45%" r="55%">
+                        <stop offset="70%" stop-color="#d6ae45"/>
+                        <stop offset="85%" stop-color="#875e17"/>
+                        <stop offset="95%" stop-color="#fae89d"/>
+                        <stop offset="100%" stop-color="#3d2703"/>
+                    </radialGradient>
+
+                    <radialGradient id="clockDialFace" cx="50%" cy="45%" r="60%">
+                        <stop offset="0%" stop-color="#fff9ea"/>
+                        <stop offset="45%" stop-color="#f5e6c4"/>
+                        <stop offset="80%" stop-color="#e4cd9b"/>
+                        <stop offset="100%" stop-color="#c9af75"/>
+                    </radialGradient>
+
+                    <linearGradient id="hourHandGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="#3a2505"/>
+                        <stop offset="45%" stop-color="#7a5313"/>
+                        <stop offset="55%" stop-color="#e2bf65"/>
+                        <stop offset="100%" stop-color="#2d1d04"/>
+                    </linearGradient>
+
+                    <linearGradient id="minuteHandGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="#2b1a03"/>
+                        <stop offset="40%" stop-color="#875b17"/>
+                        <stop offset="60%" stop-color="#ebd078"/>
+                        <stop offset="100%" stop-color="#221502"/>
+                    </linearGradient>
+
+                    <filter id="handShadow" x="-20%" y="-20%" width="150%" height="150%">
+                        <feDropShadow dx="2" dy="4" stdDeviation="3" flood-color="#150a00" flood-opacity="0.65"/>
+                    </filter>
+
+                    <radialGradient id="centerCapGrad" cx="35%" cy="35%" r="65%">
+                        <stop offset="0%" stop-color="#fff8db"/>
+                        <stop offset="40%" stop-color="#e5be53"/>
+                        <stop offset="80%" stop-color="#805612"/>
+                        <stop offset="100%" stop-color="#382202"/>
+                    </radialGradient>
+                </defs>
+
+                <!-- Clock Body -->
+                <circle cx="160" cy="160" r="158" fill="url(#goldOuterRing)" stroke="#3a2202" stroke-width="2"/>
+                <circle cx="160" cy="160" r="148" fill="url(#goldInnerBezel)" stroke="#fff0b8" stroke-width="1.5"/>
+                <circle cx="160" cy="160" r="140" fill="#2d1c03" stroke="#e0be5a" stroke-width="1.5"/>
+                <circle cx="160" cy="160" r="138" fill="url(#clockDialFace)"/>
+                <circle cx="160" cy="160" r="135" fill="none" stroke="#684a14" stroke-width="1" stroke-opacity="0.6"/>
+                <circle cx="160" cy="160" r="123" fill="none" stroke="#876523" stroke-width="1" stroke-opacity="0.6"/>
+                <circle cx="160" cy="160" r="88" fill="none" stroke="#876523" stroke-width="1.5" stroke-opacity="0.75"/>
+                <circle cx="160" cy="160" r="85" fill="none" stroke="#543c0e" stroke-width="0.75" stroke-opacity="0.5"/>
+                <circle cx="160" cy="160" r="40" fill="none" stroke="#96742e" stroke-width="0.8" stroke-opacity="0.4"/>
+
+                <!-- Ticks -->
+                <g id="clockTicks" stroke="#48330d" stroke-width="1.5" opacity="0.85">
+                    <line x1="160" y1="26" x2="160" y2="36" stroke-width="3" stroke="#362204" />
+                    <line x1="160" y1="26" x2="160" y2="36" stroke-width="3" stroke="#362204" transform="rotate(30 160 160)" />
+                    <line x1="160" y1="26" x2="160" y2="36" stroke-width="3" stroke="#362204" transform="rotate(60 160 160)" />
+                    <line x1="160" y1="26" x2="160" y2="36" stroke-width="3" stroke="#362204" transform="rotate(90 160 160)" />
+                    <line x1="160" y1="26" x2="160" y2="36" stroke-width="3" stroke="#362204" transform="rotate(120 160 160)" />
+                    <line x1="160" y1="26" x2="160" y2="36" stroke-width="3" stroke="#362204" transform="rotate(150 160 160)" />
+                    <line x1="160" y1="26" x2="160" y2="36" stroke-width="3" stroke="#362204" transform="rotate(180 160 160)" />
+                    <line x1="160" y1="26" x2="160" y2="36" stroke-width="3" stroke="#362204" transform="rotate(210 160 160)" />
+                    <line x1="160" y1="26" x2="160" y2="36" stroke-width="3" stroke="#362204" transform="rotate(240 160 160)" />
+                    <line x1="160" y1="26" x2="160" y2="36" stroke-width="3" stroke="#362204" transform="rotate(270 160 160)" />
+                    <line x1="160" y1="26" x2="160" y2="36" stroke-width="3" stroke="#362204" transform="rotate(300 160 160)" />
+                    <line x1="160" y1="26" x2="160" y2="36" stroke-width="3" stroke="#362204" transform="rotate(330 160 160)" />
+                </g>
+
+                <!-- Clock Numbers -->
+                <text x="160" y="60" font-family="'Cinzel', serif" font-size="22" font-weight="700" fill="#321e03" text-anchor="middle">12</text>
+                <text x="216" y="75" font-family="'Cinzel', serif" font-size="21" font-weight="700" fill="#321e03" text-anchor="middle">1</text>
+                <text x="254" y="114" font-family="'Cinzel', serif" font-size="21" font-weight="700" fill="#321e03" text-anchor="middle">2</text>
+                <text x="268" y="167" font-family="'Cinzel', serif" font-size="22" font-weight="700" fill="#321e03" text-anchor="middle">3</text>
+                <text x="254" y="220" font-family="'Cinzel', serif" font-size="21" font-weight="700" fill="#321e03" text-anchor="middle">4</text>
+                <text x="214" y="258" font-family="'Cinzel', serif" font-size="21" font-weight="700" fill="#321e03" text-anchor="middle">5</text>
+                <text x="160" y="272" font-family="'Cinzel', serif" font-size="22" font-weight="700" fill="#321e03" text-anchor="middle">6</text>
+                <text x="106" y="258" font-family="'Cinzel', serif" font-size="21" font-weight="700" fill="#321e03" text-anchor="middle">7</text>
+                <text x="66" y="220" font-family="'Cinzel', serif" font-size="21" font-weight="700" fill="#321e03" text-anchor="middle">8</text>
+                <text x="52" y="167" font-family="'Cinzel', serif" font-size="22" font-weight="700" fill="#321e03" text-anchor="middle">9</text>
+                <text x="66" y="114" font-family="'Cinzel', serif" font-size="21" font-weight="700" fill="#321e03" text-anchor="middle">10</text>
+                <text x="104" y="75" font-family="'Cinzel', serif" font-size="21" font-weight="700" fill="#321e03" text-anchor="middle">11</text>
+
+                <!-- Hands -->
+                <g id="hourHandGroup" class="hand" filter="url(#handShadow)">
+                    <path d="M156 168 L155 125 L152 105 L160 78 L168 105 L165 125 L164 168 Z" fill="url(#hourHandGrad)" stroke="#1a0f02" stroke-width="0.8"/>
+                    <line x1="160" y1="82" x2="160" y2="165" stroke="#ffe794" stroke-width="1" opacity="0.6"/>
+                </g>
+                <g id="minuteHandGroup" class="hand" filter="url(#handShadow)">
+                    <path d="M156.5 174 L156 115 L153 65 L160 42 L167 65 L164 115 L163.5 174 Z" fill="url(#minuteHandGrad)" stroke="#170c01" stroke-width="0.8"/>
+                    <line x1="160" y1="46" x2="160" y2="170" stroke="#fff1b3" stroke-width="1" opacity="0.7"/>
+                </g>
+                <g id="secondHandGroup" class="second-hand" filter="url(#handShadow)">
+                    <line x1="160" y1="185" x2="160" y2="35" stroke="#a11508" stroke-width="1.8" stroke-linecap="round"/>
+                    <line x1="160" y1="185" x2="160" y2="40" stroke="#dca82c" stroke-width="1" stroke-linecap="round"/>
+                    <circle cx="160" cy="180" r="4.5" fill="#dca82c" stroke="#5a0802" stroke-width="1.2"/>
+                    <circle cx="160" cy="55" r="2.5" fill="#dca82c"/>
+                </g>
+                <circle cx="160" cy="160" r="8.5" fill="url(#centerCapGrad)" stroke="#2b1802" stroke-width="1.5"/>
+                <circle cx="160" cy="160" r="3.5" fill="#ffeeb0"/>
+            </svg>
+        </div>
+
+        <!-- 2. Hebrew & Secular Dates -->
+        <div class="dates-section">
+            <div class="hebrew-date" id="hebrewDate">טוען תאריך...</div>
+            <div class="secular-date" id="secularDate">--</div>
+        </div>
+
+        <!-- 3. Star of David Divider -->
+        <div class="star-divider">
+            <span class="star-icon">✡</span>
+        </div>
+
+        <!-- 4. Zmanim Title -->
+        <div class="zmanim-title">זמני היום (עתים לבינה)</div>
+
+        <!-- 5. 8 Zmanim Seamless List -->
+        <div class="zmanim-list">
+            <div class="zman-item">
+                <span class="zman-name">עלות השחר (72 דק')</span>
+                <span class="zman-time" id="zmAlos">--:--</span>
+            </div>
+            <div class="zman-item">
+                <span class="zman-name">זמן ציצית ותפילין</span>
+                <span class="zman-time" id="zmMisheyakir">--:--</span>
+            </div>
+            <div class="zman-item">
+                <span class="zman-name">נץ החמה</span>
+                <span class="zman-time" id="zmNetz">--:--</span>
+            </div>
+            <div class="zman-item">
+                <span class="zman-name">סוזק"ש (מג"א / גר"א)</span>
+                <span class="zman-time zman-time-dual" id="zmSofZman">--:-- / --:--</span>
+            </div>
+            <div class="zman-item">
+                <span class="zman-name">חצות היום</span>
+                <span class="zman-time" id="zmChatzot">--:--</span>
+            </div>
+            <div class="zman-item">
+                <span class="zman-name">שקיעת החמה</span>
+                <span class="zman-time" id="zmShkia">--:--</span>
+            </div>
+            <div class="zman-item">
+                <span class="zman-name">צאת הכוכבים</span>
+                <span class="zman-time" id="zmTzet">--:--</span>
+            </div>
+            <div class="zman-item">
+                <span class="zman-name">צאת הכוכבים (ר"ת)</span>
+                <span class="zman-time" id="zmTzetRT">--:--</span>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         MAIN INNER GATE (5-Second Slide Rotator)
+    ═══════════════════════════════════════════════════════ -->
+    <div class="main-stage-container">
+
+        <!-- ── SLIDE 1: זמני תפילות ימות החול ── -->
+        <div class="slide-page active-slide" id="slide1">
+            <div class="slide-header-section">
+                <div class="slide-title-text">זמני התפילות לימות החול</div>
+                <div class="slide-title-divider">
+                    <span class="slide-divider-gem">✦ ✡ ✦</span>
+                </div>
+            </div>
+
+            <div class="prayers-list-seamless" id="weekdayPrayersContainer">
+                <div class="prayer-row">
+                    <div class="prayer-info">
+                        <span class="prayer-bullet-icon">✡</span>
+                        <span class="prayer-label">שחרית</span>
+                        <span class="prayer-desc">קדיש "הודו"</span>
+                    </div>
+                    <div class="prayer-time-value">06:30</div>
+                </div>
+
+                <div class="prayer-row">
+                    <div class="prayer-info">
+                        <span class="prayer-bullet-icon">✡</span>
+                        <span class="prayer-label">מנחה</span>
+                        <span class="prayer-desc">25 דקות לפני שקיעת החמה</span>
+                    </div>
+                    <div class="prayer-time-value" id="dynMincha">--:--</div>
+                </div>
+
+                <div class="prayer-row">
+                    <div class="prayer-info">
+                        <span class="prayer-bullet-icon">✡</span>
+                        <span class="prayer-label">שיעור בהלכה</span>
+                        <span class="prayer-desc">ע"י מורנו ורבנו הרב שליט"א</span>
+                    </div>
+                    <div class="prayer-time-text">בין מנחה לערבית</div>
+                </div>
+
+                <div class="prayer-row">
+                    <div class="prayer-info">
+                        <span class="prayer-bullet-icon">✡</span>
+                        <span class="prayer-label">ערבית</span>
+                        <span class="prayer-desc">30 דקות לאחר שקיעת החמה</span>
+                    </div>
+                    <div class="prayer-time-value" id="dynArvit">--:--</div>
+                </div>
+
+                <div class="prayer-row">
+                    <div class="prayer-info">
+                        <span class="prayer-bullet-icon">✡</span>
+                        <span class="prayer-label">שיעור בגמרא</span>
+                        <span class="prayer-desc">מדי ערב לאחר תפילת ערבית</span>
+                    </div>
+                    <div class="prayer-time-text">לאחר ערבית</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── SLIDE 2: זמני תפילות שבת קודש ── -->
+        <div class="slide-page" id="slide2">
+            <div class="slide-header-section">
+                <div class="slide-title-text" id="shabbatMainTitle">לוח זמנים לשבת</div>
+                <div class="slide-title-divider">
+                    <span class="slide-divider-gem" id="shabbatParashaTitle">✦ פרשת השבוע ✦</span>
+                </div>
+            </div>
+
+            <div class="prayers-list-seamless" id="shabbatPrayersContainer">
+                <!-- נטען אוטומטית מקובץ prayers_config.js -->
+            </div>
+        </div>
+
+        <!-- ── SLIDE 3: כולל בוקר ── -->
+        <div class="slide-page" id="slide3">
+            <div class="slide-header-section">
+                <div class="slide-title-text" id="kollelMainTitle">כולל בוקר</div>
+                <div class="slide-title-divider">
+                    <span class="slide-divider-gem">✦ בית הכנסת הספרדי הגדול ״יפה נוף״ ✦</span>
+                </div>
+            </div>
+
+            <div class="kollel-card-container" id="kollelContainer">
+                <!-- נטען אוטומטית מקובץ prayers_config.js -->
+            </div>
+        </div>
+
+        <!-- ── SLIDE 4: לעילוי נשמת (נפטרי השבוע) ── -->
+        <div class="slide-page" id="slide4">
+            <div class="slide-header-section">
+                <div class="slide-title-text">לעילוי נשמת יקירינו</div>
+                <div class="slide-title-divider">
+                    <span class="slide-divider-gem">✦ שחל יום פקודתם בשבוע זה • ת.נ.צ.ב.ה ✦</span>
+                </div>
+            </div>
+
+            <div class="memorial-container" id="memorialContainer">
+                <!-- נטען אוטומטית מקובץ prayers_config.js עם תמיכה בפג׳ינציה אוטומטית -->
+            </div>
+
+            <div class="memorial-pagination-bar" id="memorialPaginationBar"></div>
+        </div>
+
+        <!-- ── SLIDE 8: מודעת אבל והשתתפות בצער ── -->
+        <div class="slide-page" id="slide8">
+            <div class="slide-header-section">
+                <div class="slide-title-text" id="condolenceMainTitle">ברוך דיין האמת</div>
+                <div class="slide-title-divider">
+                    <span class="slide-divider-gem" id="condolenceSubtitle">✦ הודעת אבל והשתתפות בצער ✦</span>
+                </div>
+            </div>
+
+            <div class="condolence-layout" id="condolenceContainer">
+                <!-- נטען אוטומטית מקובץ prayers_config.js -->
+            </div>
+        </div>
+
+        <!-- ── SLIDE 5: תרומות והחזקת בית הכנסת ── -->
+        <div class="slide-page" id="slide5">
+            <div class="slide-header-section">
+                <div class="slide-title-text" id="donationsMainTitle">תרומות והחזקת בית הכנסת</div>
+                <div class="slide-title-divider">
+                    <span class="slide-divider-gem" id="donationsSubtitle">✦ ״וכל מי שעוסקים בצרכי ציבור באמונה ישלם שכרם״ ✦</span>
+                </div>
+            </div>
+
+            <div class="donations-layout" id="donationsLayout">
+                <!-- נטען אוטומטית מקובץ prayers_config.js ו-qrcode_engine.js -->
+            </div>
+        </div>
+
+        <!-- ── SLIDE 6: שבת שובה — פרשת האזינו ודרשת שבת שובה ── -->
+        <div class="slide-page" id="slide6">
+            <div class="slide-header-section">
+                <div class="slide-title-text" id="shabbatShuvaTitle">יום שבת פרשת ״האזינו״</div>
+                <div class="slide-title-divider">
+                    <span class="slide-divider-gem" id="shabbatShuvaSubTitle">✦ ח׳ תשרי, התשפ״ז • בית הכנסת הספרדי הגדול ״יפה נוף״ ✦</span>
+                </div>
+            </div>
+
+            <div class="shabbat-shuva-container" id="shabbatShuvaContainer">
+                <!-- נטען אוטומטית מקובץ prayers_config.js -->
+            </div>
+        </div>
+
+        <!-- ── SLIDE 7: זמני תפילות יום הכיפורים ── -->
+        <div class="slide-page" id="slide7">
+            <div class="slide-header-section">
+                <div class="slide-title-text" id="yomKippurTitle">לוח זמני תפילות יום הכיפורים</div>
+                <div class="slide-title-divider">
+                    <span class="slide-divider-gem" id="yomKippurSubTitle">✦ ערב יוה״כ ויום הכיפורים התשפ״ז • לחיים טובים ולשלום ✦</span>
+                </div>
+            </div>
+
+            <div class="yk-schedule-container" id="yomKippurContainer">
+                <!-- נטען אוטומטית מקובץ prayers_config.js -->
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         BOTTOM SEAMLESS CONVEYOR-BELT MARQUEE (סרט נע רציף ללא הפסקה)
+    ═══════════════════════════════════════════════════════ -->
+    <div class="bottom-marquee-container" role="region" aria-label="הודעות גוללות">
+        <div class="marquee-track">
+            <!-- First Track Copy -->
+            <div class="marquee-content">
+                <span class="saying-item">ברוך הבא בשם השם, ברכנוכם מבית השם.</span>
+                <span class="marquee-separator">✦ ✦ ✦</span>
+
+                <span class="saying-item">נא לשמור על קדושת המקום!</span>
+                <span class="marquee-separator">✦ ✦ ✦</span>
+
+                <span class="saying-item">אסור לדבר בשעת קריאת התורה והתפילה.</span>
+                <span class="marquee-separator">✦ ✦ ✦</span>
+
+                <span class="saying-item">הסוגר פיו ולשונו בעת התפילה – פותח שערי שמים לתפילתו.</span>
+                <span class="marquee-separator">✦ ✦ ✦</span>
+
+                <span class="saying-item">כתב רבינו תם: "הנזהר מלדבר בבית הכנסת יזכה לאריכות ימים ושיבה טובה".</span>
+                <span class="marquee-separator">✦ ✦ ✦</span>
+            </div>
+
+            <!-- Second Cloned Track Copy for Infinite Seamless Conveyor Loop -->
+            <div class="marquee-content" aria-hidden="true">
+                <span class="saying-item">ברוך הבא בשם השם, ברכנוכם מבית השם.</span>
+                <span class="marquee-separator">✦ ✦ ✦</span>
+
+                <span class="saying-item">נא לשמור על קדושת המקום!</span>
+                <span class="marquee-separator">✦ ✦ ✦</span>
+
+                <span class="saying-item">אסור לדבר בשעת קריאת התורה והתפילה.</span>
+                <span class="marquee-separator">✦ ✦ ✦</span>
+
+                <span class="saying-item">הסוגר פיו ולשונו בעת התפילה – פותח שערי שמים לתפילתו.</span>
+                <span class="marquee-separator">✦ ✦ ✦</span>
+
+                <span class="saying-item">כתב רבינו תם: "הנזהר מלדבר בבית הכנסת יזכה לאריכות ימים ושיבה טובה".</span>
+                <span class="marquee-separator">✦ ✦ ✦</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         FULL SELF-CONTAINED OFFLINE ENGINE & SLIDE ROTATOR
+    ═══════════════════════════════════════════════════════ -->
+    <script>
+        const JERUSALEM_LAT = 31.7683;
+        const JERUSALEM_LNG = 35.2137;
+        const JERUSALEM_ELEV = 800;
+
+        const JEWISH_MONTHS = ['', 'ניסן', 'אייר', 'סיוון', 'תמוז', 'אב', 'אלול', 'תשרי', 'חשוון', 'כסלו', 'טבת', 'שבט', 'אדר', "אדר ב'"];
+        const SECULAR_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
+        const HEBREW_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+
+        function toHebrewNumeral(num) {
+            if (!num || num <= 0) return '';
+            const HUNDREDS = ['', 'ק', 'ר', 'ש', 'ת', 'תק', 'תר', 'תש', 'תת', 'תתק'];
+            const TENS     = ['', 'י', 'כ', 'ל', 'מ', 'נ', 'ס', 'ע', 'פ', 'צ'];
+            const ONES     = ['', 'א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'];
+
+            let n = num;
+            let res = '';
+
+            if (n >= 100) { res += HUNDREDS[Math.floor(n / 100)]; n %= 100; }
+            if (n === 15) { res += 'טו'; }
+            else if (n === 16) { res += 'טז'; }
+            else {
+                if (n >= 10) { res += TENS[Math.floor(n / 10)]; n %= 10; }
+                if (n > 0) { res += ONES[n]; }
+            }
+
+            if (res.length === 0) return '';
+            if (res.length === 1) return res + "׳";
+            return res.slice(0, -1) + '״' + res.slice(-1);
+        }
+
+        function getHebrewDateOffline(date) {
+            const y = date.getFullYear();
+            const m = date.getMonth() + 1;
+            const d = date.getDate();
+
+            let a = Math.floor((14 - m) / 12);
+            let y_prime = y + 4800 - a;
+            let m_prime = m + 12 * a - 3;
+            let jd = d + Math.floor((153 * m_prime + 2) / 5) + 365 * y_prime + Math.floor(y_prime / 4) - Math.floor(y_prime / 100) + Math.floor(y_prime / 400) - 32045;
+
+            let hebrewYear = y + 3760;
+            function roshHashanaJD(year) {
+                let months = Math.floor((235 * year - 234) / 19);
+                let parts = 12084 + 13753 * months;
+                let day = months * 29 + Math.floor(parts / 25920);
+                let remParts = parts % 25920;
+
+                let dow = (day + 1) % 7;
+                if (dow === 1 || dow === 4 || dow === 6) {
+                    day++;
+                } else if (dow === 2 && remParts >= 15 * 1080 + 204 && !isLeap(year)) {
+                    day += 2;
+                } else if (dow === 3 && remParts >= 21 * 1080 + 589 && isLeap(year - 1)) {
+                    day++;
+                }
+                return day + 347997;
+            }
+
+            function isLeap(year) {
+                return (7 * year + 1) % 19 < 7;
+            }
+
+            if (jd >= roshHashanaJD(hebrewYear + 1)) {
+                hebrewYear++;
+            }
+
+            let rhJD = roshHashanaJD(hebrewYear);
+            let nextRhJD = roshHashanaJD(hebrewYear + 1);
+            let yearLength = nextRhJD - rhJD;
+            let leap = isLeap(hebrewYear);
+
+            let cheshvanDays = (yearLength === 353 || yearLength === 383) ? 29 : (yearLength === 355 || yearLength === 385) ? 30 : 29;
+            let kislevDays = (yearLength === 353 || yearLength === 383) ? 29 : (yearLength === 355 || yearLength === 385) ? 30 : 30;
+
+            let monthDays = leap
+                ? [0, 30, 29, 30, 29, 30, 29, 30, cheshvanDays, kislevDays, 29, 30, 30, 29]
+                : [0, 30, 29, 30, 29, 30, 29, 30, cheshvanDays, kislevDays, 29, 30, 29];
+
+            let daysSinceRH = jd - rhJD;
+            let hMonth = 7;
+            let hDay = daysSinceRH + 1;
+
+            let monthsInOrder = leap
+                ? [7, 8, 9, 10, 11, 12, 13, 1, 2, 3, 4, 5, 6]
+                : [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
+
+            for (let mIdx of monthsInOrder) {
+                let mLen = monthDays[mIdx];
+                if (hDay <= mLen) {
+                    hMonth = mIdx;
+                    break;
+                }
+                hDay -= mLen;
+            }
+
+            return {
+                day: hDay,
+                month: hMonth,
+                year: hebrewYear
+            };
+        }
+
+        function calculateJerusalemZmanimOffline(date) {
+            const year = date.getFullYear();
+            const month = date.getMonth() + 1;
+            const day = date.getDate();
+
+            const n1 = Math.floor(275 * month / 9);
+            const n2 = Math.floor((month + 9) / 12);
+            const n3 = (1 + Math.floor((year - 4 * Math.floor(year / 4) + 2) / 3));
+            const N = n1 - (n2 * n3) + day - 30;
+
+            const lngHour = JERUSALEM_LNG / 15;
+
+            function calcSolar(zenith, isSunrise) {
+                const t = isSunrise ? N + ((6 - lngHour) / 24) : N + ((18 - lngHour) / 24);
+                const M = (0.9856 * t) - 3.289;
+                let L = M + (1.916 * Math.sin(M * Math.PI / 180)) + (0.020 * Math.sin(2 * M * Math.PI / 180)) + 282.634;
+                L = (L + 360) % 360;
+
+                let RA = Math.atan(0.91764 * Math.tan(L * Math.PI / 180)) * 180 / Math.PI;
+                RA = (RA + 360) % 360;
+                const Lquadrant = Math.floor(L / 90) * 90;
+                const RAquadrant = Math.floor(RA / 90) * 90;
+                RA = (RA + (Lquadrant - RAquadrant)) / 15;
+
+                const sinDec = 0.39782 * Math.sin(L * Math.PI / 180);
+                const cosDec = Math.cos(Math.asin(sinDec));
+
+                const cosH = (Math.cos(zenith * Math.PI / 180) - (sinDec * Math.sin(JERUSALEM_LAT * Math.PI / 180))) / (cosDec * Math.cos(JERUSALEM_LAT * Math.PI / 180));
+
+                if (cosH > 1 || cosH < -1) return null;
+
+                let H = isSunrise ? 360 - Math.acos(cosH) * 180 / Math.PI : Math.acos(cosH) * 180 / Math.PI;
+                H = H / 15;
+
+                const T = H + RA - (0.06571 * t) - 6.622;
+                let UT = (T - lngHour + 24) % 24;
+
+                const tempDate = new Date(year, month - 1, day, 12, 0, 0);
+                const tzOffsetMinutes = -tempDate.getTimezoneOffset();
+                const localHours = (UT + tzOffsetMinutes / 60 + 24) % 24;
+
+                return localHours;
+            }
+
+            // חישוב זמני היום בדיוק נמרץ לפי לוח "עתים לבינה" (הרב דוד אהרן סופר שליט"א, אופק ירושלים)
+            // 1. הנץ החמה ושקיעת החמה במישור (זניט 90.833 מעלות - כולל חצי קוטר השמש ושבירה אטמוספרית)
+            const sunriseH = calcSolar(90.833, true);
+            const sunsetH  = calcSolar(90.833, false);
+
+            // שעה זמנית לשיטת הגר"א (מהנץ ועד השקיעה במישור מחולק ב-12)
+            const shaahZmanitGRA = (sunsetH - sunriseH) / 12;
+
+            // 2. עמוד השחר ב' (העיקר לדינא בעתים לבינה) - 16.02 מעלות קודם הנץ (כ-72 דקות בשיוויון)
+            const alosDegH = calcSolar(90 + 16.02, true);
+            const alosH    = alosDegH || (sunriseH - (72 / 60));
+
+            // 3. זמן ציצית ותפילין (משיכיר) לפי עתים לבינה - 11.5 מעלות קודם הנץ (כ-50 דקות קודם הנץ)
+            const misheyakirDegH = calcSolar(90 + 11.5, true);
+            const misheyakirH    = misheyakirDegH || (sunriseH - (50 / 60));
+
+            // 4. סוף זמן קריאת שמע:
+            // הגר"א - 3 שעות זמניות מהנץ
+            const sofShmaGRA = sunriseH + (3 * shaahZmanitGRA);
+
+            // מג"א לפי עתים לבינה (מופיע בלוח היומי לפי עמוד השחר 90 דק' / שעות זמניות מג"א)
+            // = 3 שעות זמניות מעלות השחר 90 דק' (או הנץ פחות 45 דקות מהגר"א בלוח היומי)
+            const alos90H = calcSolar(90 + 19.75, true) || (sunriseH - (90 / 60));
+            const tzet90H = calcSolar(90 + 19.75, false) || (sunsetH + (90 / 60));
+            const shaahZmanitMGA90 = ((sunsetH + 1.5) - (sunriseH - 1.5)) / 12;
+            const sofShmaMGA = (sunriseH - 1.5) + (3 * shaahZmanitMGA90);
+
+            // 5. חצות היום (חצי הזמן בין הנץ לשקיעה)
+            const noonH = (sunriseH + sunsetH) / 2;
+
+            // 6. צאת הכוכבים לדינא (כ-20 דקות שוות / זמניות לאחר השקיעה / 5.14 מעלות)
+            const tzetGeonimDegH = calcSolar(90 + 5.14, false);
+            const tzetH          = tzetGeonimDegH || (sunsetH + (20 / 60));
+
+            // 7. צאת הכוכבים לרבנו תם - 72 דקות שוות לאחר שקיעה במישור (כפסק מרן והלוח)
+            const tzetRTH = sunsetH + (72 / 60);
+
+            // זמני תפילות דינמיים
+            const minchaDynamicH = sunsetH - (25 / 60);
+            const arvitDynamicH  = sunsetH + (30 / 60);
+
+            function formatH(decimalHours) {
+                if (decimalHours === null || isNaN(decimalHours)) return '--:--';
+                const totalMins = Math.round(decimalHours * 60);
+                const h = Math.floor(totalMins / 60) % 24;
+                const m = totalMins % 60;
+                return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+            }
+
+            return {
+                alos: formatH(alosH),
+                misheyakir: formatH(misheyakirH),
+                netz: formatH(sunriseH),
+                sofShmaMGA: formatH(sofShmaMGA),
+                sofShmaGRA: formatH(sofShmaGRA),
+                chatzot: formatH(noonH),
+                shkia: formatH(sunsetH),
+                tzet: formatH(tzetH),
+                tzetRT: formatH(tzetRTH),
+                minchaToday: formatH(minchaDynamicH),
+                arvitToday: formatH(arvitDynamicH),
+                sunsetHourRaw: sunsetH,
+                sunriseHourRaw: sunriseH
+            };
+        }
+
+        function renderWeekdayPrayers() {
+            const container = document.getElementById('weekdayPrayersContainer');
+            if (!container) return;
+
+            let list = window.PRAYERS_CONFIG?.weekdayPrayers;
+            if (!list || !Array.isArray(list) || list.length === 0) {
+                list = [
+                    { name: "שחרית", desc: "קדיש \"הודו\"", time: "06:30" },
+                    { name: "מנחה", desc: "25 דקות לפני שקיעת החמה", time: "auto:shkia-25" },
+                    { name: "שיעור בהלכה", desc: "ע\"י מורנו ורבנו הרב שליט\"א", time: "בין מנחה לערבית" },
+                    { name: "ערבית", desc: "30 דקות לאחר שקיעת החמה", time: "auto:shkia+30" },
+                    { name: "שיעור בגמרא", desc: "מדי ערב לאחר תפילת ערבית", time: "לאחר ערבית" }
+                ];
+            }
+
+            const today = new Date();
+            const z = calculateJerusalemZmanimOffline(today);
+
+            function formatDecimalH(decimalHours) {
+                if (decimalHours === null || isNaN(decimalHours)) return '--:--';
+                const totalMins = Math.round(decimalHours * 60);
+                const h = Math.floor(totalMins / 60) % 24;
+                const m = totalMins % 60;
+                return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+            }
+
+            container.innerHTML = list.map(item => {
+                let timeStr = item.time || '';
+                let isTimeValue = true;
+
+                if (timeStr.startsWith('auto:')) {
+                    const rule = timeStr.replace('auto:', '').trim();
+                    if (rule.startsWith('shkia-')) {
+                        const mins = parseFloat(rule.replace('shkia-', '')) || 0;
+                        timeStr = formatDecimalH(z.sunsetHourRaw - (mins / 60));
+                    } else if (rule.startsWith('shkia+')) {
+                        const mins = parseFloat(rule.replace('shkia+', '')) || 0;
+                        timeStr = formatDecimalH(z.sunsetHourRaw + (mins / 60));
+                    } else if (rule === 'netz') {
+                        timeStr = z.netz;
+                    } else {
+                        timeStr = rule;
+                    }
+                } else if (/[א-תA-Za-z]/.test(timeStr)) {
+                    isTimeValue = false;
+                }
+
+                const timeHtml = isTimeValue 
+                    ? `<div class="prayer-time-value">${timeStr}</div>`
+                    : `<div class="prayer-time-text">${timeStr}</div>`;
+
+                return `
+                    <div class="prayer-row">
+                        <div class="prayer-info">
+                            <span class="prayer-bullet-icon">✡</span>
+                            <span class="prayer-label">${item.name}</span>
+                            ${item.desc ? `<span class="prayer-desc">${item.desc}</span>` : ''}
+                        </div>
+                        ${timeHtml}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        const ISRAEL_PARASHA_TABLE = {
+            'R_1_353': ['וילך', 'האזינו', 'חול המועד סוכות', 'בראשית', 'נח', 'לך לך', 'וירא', 'חיי שרה', 'תולדות', 'ויצא', 'וישלח', 'וישב', 'מקץ', 'ויגש', 'ויחי', 'שמות', 'וארא', 'בא', 'בשלח', 'יתרו', 'משפטים', 'תרומה', 'תצוה', 'כי תשא', 'ויקהל-פקודי', 'ויקרא', 'צו', 'חול המועד פסח', 'שמיני', 'תזריע-מצורע', 'אחרי מות-קדושים', 'אמור', 'בהר-בחוקתי', 'במדבר', 'נשא', 'בהעלותך', 'שלח לך', 'קרח', 'חקת', 'בלק', 'פינחס', 'מטות-מסעי', 'דברים', 'ואתחנן', 'עקב', 'ראה', 'שופטים', 'כי תצא', 'כי תבוא', 'נצבים-וילך'],
+            'R_1_355': ['וילך', 'האזינו', 'חול המועד סוכות', 'בראשית', 'נח', 'לך לך', 'וירא', 'חיי שרה', 'תולדות', 'ויצא', 'וישלח', 'וישב', 'מקץ', 'ויגש', 'ויחי', 'שמות', 'וארא', 'בא', 'בשלח', 'יתרו', 'משפטים', 'תרומה', 'תצוה', 'כי תשא', 'ויקהל-פקודי', 'ויקרא', 'צו', 'חג הפסח', 'שמיני', 'תזריע-מצורע', 'אחרי מות-קדושים', 'אמור', 'בהר-בחוקתי', 'במדבר', 'נשא', 'בהעלותך', 'שלח לך', 'קרח', 'חקת-בלק', 'פינחס', 'מטות-מסעי', 'דברים', 'ואתחנן', 'עקב', 'ראה', 'שופטים', 'כי תצא', 'כי תבוא', 'נצבים', 'וילך'],
+            'R_2_354': ['וילך', 'האזינו', 'חול המועד סוכות', 'בראשית', 'נח', 'לך לך', 'וירא', 'חיי שרה', 'תולדות', 'ויצא', 'וישלח', 'וישב', 'מקץ', 'ויגש', 'ויחי', 'שמות', 'וארא', 'בא', 'בשלח', 'יתרו', 'משפטים', 'תרומה', 'תצוה', 'כי תשא', 'ויקהל-פקודי', 'ויקרא', 'צו', 'חול המועד פסח', 'שמיני', 'תזריע-מצורע', 'אחרי מות-קדושים', 'אמור', 'בהר-בחוקתי', 'במדבר', 'נשא', 'בהעלותך', 'שלח לך', 'קרח', 'חקת-בלק', 'פינחס', 'מטות-מסעי', 'דברים', 'ואתחנן', 'עקב', 'ראה', 'שופטים', 'כי תצא', 'כי תבוא', 'נצבים', 'וילך'],
+            'R_4_354': ['האזינו', 'יום הכיפורים', 'חול המועד סוכות', 'בראשית', 'נח', 'לך לך', 'וירא', 'חיי שרה', 'תולדות', 'ויצא', 'וישלח', 'וישב', 'מקץ', 'ויגש', 'ויחי', 'שמות', 'וארא', 'בא', 'בשלח', 'יתרו', 'משפטים', 'תרומה', 'תצוה', 'כי תשא', 'ויקהל', 'פקודי', 'ויקרא', 'צו', 'שביעי של פסח', 'שמיני', 'תזריע-מצורע', 'אחרי מות-קדושים', 'אמור', 'בהר-בחוקתי', 'במדבר', 'נשא', 'בהעלותך', 'שלח לך', 'קרח', 'חקת', 'בלק', 'פינחס', 'מטות-מסעי', 'דברים', 'ואתחנן', 'עקב', 'ראה', 'שופטים', 'כי תצא', 'כי תבוא', 'נצבים-וילך'],
+            'R_4_355': ['האזינו', 'יום הכיפורים', 'חול המועד סוכות', 'בראשית', 'נח', 'לך לך', 'וירא', 'חיי שרה', 'תולדות', 'ויצא', 'וישלח', 'וישב', 'מקץ', 'ויגש', 'ויחי', 'שמות', 'וארא', 'בא', 'בשלח', 'יתרו', 'משפטים', 'תרומה', 'תצוה', 'כי תשא', 'ויקהל-פקודי', 'ויקרא', 'צו', 'חול המועד פסח', 'שמיני', 'תזריע-מצורע', 'אחרי מות-קדושים', 'אמור', 'בהר-בחוקתי', 'במדבר', 'נשא', 'בהעלותך', 'שלח לך', 'קרח', 'חקת', 'בלק', 'פינחס', 'מטות-מסעי', 'דברים', 'ואתחנן', 'עקב', 'ראה', 'שופטים', 'כי תצא', 'כי תבוא', 'נצבים', 'וילך'],
+            'R_6_353': ['ראש השנה', 'האזינו', 'חג הסוכות', 'שמחת תורה', 'בראשית', 'נח', 'לך לך', 'וירא', 'חיי שרה', 'תולדות', 'ויצא', 'וישלח', 'וישב', 'מקץ', 'ויגש', 'ויחי', 'שמות', 'וארא', 'בא', 'בשלח', 'יתרו', 'משפטים', 'תרומה', 'תצוה', 'כי תשא', 'ויקהל-פקודי', 'ויקרא', 'צו', 'חג הפסח', 'שמיני', 'תזריע-מצורע', 'אחרי מות-קדושים', 'אמור', 'בהר-בחוקתי', 'במדבר', 'נשא', 'בהעלותך', 'שלח לך', 'קרח', 'חקת-בלק', 'פינחס', 'מטות-מסעי', 'דברים', 'ואתחנן', 'עקב', 'ראה', 'שופטים', 'כי תצא', 'כי תבוא', 'נצבים', 'וילך'],
+            'R_6_355': ['ראש השנה', 'האזינו', 'חג הסוכות', 'שמחת תורה', 'בראשית', 'נח', 'לך לך', 'וירא', 'חיי שרה', 'תולדות', 'ויצא', 'וישלח', 'וישב', 'מקץ', 'ויגש', 'ויחי', 'שמות', 'וארא', 'בא', 'בשלח', 'יתרו', 'משפטים', 'תרומה', 'תצוה', 'כי תשא', 'ויקהל-פקודי', 'ויקרא', 'צו', 'חול המועד פסח', 'שמיני', 'תזריע-מצורע', 'אחרי מות-קדושים', 'אמור', 'בהר-בחוקתי', 'במדבר', 'נשא', 'בהעלותך', 'שלח לך', 'קרח', 'חקת', 'בלק', 'פינחס', 'מטות-מסעי', 'דברים', 'ואתחנן', 'עקב', 'ראה', 'שופטים', 'כי תצא', 'כי תבוא', 'נצבים-וילך'],
+            'L_1_383': ['וילך', 'האזינו', 'חול המועד סוכות', 'בראשית', 'נח', 'לך לך', 'וירא', 'חיי שרה', 'תולדות', 'ויצא', 'וישלח', 'וישב', 'מקץ', 'ויגש', 'ויחי', 'שמות', 'וארא', 'בא', 'בשלח', 'יתרו', 'משפטים', 'תרומה', 'תצוה', 'כי תשא', 'ויקהל', 'פקודי', 'ויקרא', 'צו', 'חול המועד פסח', 'שמיני', 'תזריע', 'מצורע', 'אחרי מות', 'קדושים', 'אמור', 'בהר', 'בחוקתי', 'במדבר', 'נשא', 'בהעלותך', 'שלח לך', 'קרח', 'חקת', 'בלק', 'פינחס', 'מטות-מסעי', 'דברים', 'ואתחנן', 'עקב', 'ראה', 'שופטים', 'כי תצא', 'כי תבוא', 'נצבים-וילך'],
+            'L_1_385': ['וילך', 'האזינו', 'חול המועד סוכות', 'בראשית', 'נח', 'לך לך', 'וירא', 'חיי שרה', 'תולדות', 'ויצא', 'וישלח', 'וישב', 'מקץ', 'ויגש', 'ויחי', 'שמות', 'וארא', 'בא', 'בשלח', 'יתרו', 'משפטים', 'תרומה', 'תצוה', 'כי תשא', 'ויקהל', 'פקודי', 'ויקרא', 'צו', 'שביעי של פסח', 'שמיני', 'תזריע', 'מצורע', 'אחרי מות', 'קדושים', 'אמור', 'בהר', 'בחוקתי', 'במדבר', 'נשא', 'בהעלותך', 'שלח לך', 'קרח', 'חקת', 'בלק', 'פינחס', 'מטות-מסעי', 'דברים', 'ואתחנן', 'עקב', 'ראה', 'שופטים', 'כי תצא', 'כי תבוא', 'נצבים', 'וילך'],
+            'L_2_384': ['וילך', 'האזינו', 'חול המועד סוכות', 'בראשית', 'נח', 'לך לך', 'וירא', 'חיי שרה', 'תולדות', 'ויצא', 'וישלח', 'וישב', 'מקץ', 'ויגש', 'ויחי', 'שמות', 'וארא', 'בא', 'בשלח', 'יתרו', 'משפטים', 'תרומה', 'תצוה', 'כי תשא', 'ויקהל', 'פקודי', 'ויקרא', 'צו', 'חג הפסח', 'שמיני', 'תזריע', 'מצורע', 'אחרי מות', 'קדושים', 'אמור', 'בהר', 'בחוקתי', 'במדבר', 'נשא', 'בהעלותך', 'שלח לך', 'קרח', 'חקת', 'בלק', 'פינחס', 'מטות', 'מסעי', 'דברים', 'ואתחנן', 'עקב', 'ראה', 'שופטים', 'כי תצא', 'כי תבוא', 'נצבים-וילך'],
+            'L_4_383': ['האזינו', 'יום הכיפורים', 'חול המועד סוכות', 'בראשית', 'נח', 'לך לך', 'וירא', 'חיי שרה', 'תולדות', 'ויצא', 'וישלח', 'וישב', 'מקץ', 'ויגש', 'ויחי', 'שמות', 'וארא', 'בא', 'בשלח', 'יתרו', 'משפטים', 'תרומה', 'תצוה', 'כי תשא', 'ויקהל', 'פקודי', 'ויקרא', 'צו', 'חג הפסח', 'שמיני', 'תזריע', 'מצורע', 'אחרי מות', 'קדושים', 'אמור', 'בהר', 'בחוקתי', 'במדבר', 'נשא', 'בהעלותך', 'שלח לך', 'קרח', 'חקת', 'בלק', 'פינחס', 'מטות-מסעי', 'דברים', 'ואתחנן', 'עקב', 'ראה', 'שופטים', 'כי תצא', 'כי תבוא', 'נצבים', 'וילך'],
+            'L_4_385': ['האזינו', 'יום הכיפורים', 'חול המועד סוכות', 'בראשית', 'נח', 'לך לך', 'וירא', 'חיי שרה', 'תולדות', 'ויצא', 'וישלח', 'וישב', 'מקץ', 'ויגש', 'ויחי', 'שמות', 'וארא', 'בא', 'בשלח', 'יתרו', 'משפטים', 'תרומה', 'תצוה', 'כי תשא', 'ויקהל', 'פקודי', 'ויקרא', 'צו', 'חול המועד פסח', 'שמיני', 'תזריע', 'מצורע', 'אחרי מות', 'קדושים', 'אמור', 'בהר', 'בחוקתי', 'במדבר', 'נשא', 'בהעלותך', 'שלח לך', 'קרח', 'חקת', 'בלק', 'פינחס', 'מטות', 'מסעי', 'דברים', 'ואתחנן', 'עקב', 'ראה', 'שופטים', 'כי תצא', 'כי תבוא', 'נצבים-וילך'],
+            'L_6_383': ['ראש השנה', 'האזינו', 'חג הסוכות', 'שמחת תורה', 'בראשית', 'נח', 'לך לך', 'וירא', 'חיי שרה', 'תולדות', 'ויצא', 'וישלח', 'וישב', 'מקץ', 'ויגש', 'ויחי', 'שמות', 'וארא', 'בא', 'בשלח', 'יתרו', 'משפטים', 'תרומה', 'תצוה', 'כי תשא', 'ויקהל', 'פקודי', 'ויקרא', 'צו', 'חול המועד פסח', 'שמיני', 'תזריע', 'מצורע', 'אחרי מות', 'קדושים', 'אמור', 'בהר', 'בחוקתי', 'במדבר', 'נשא', 'בהעלותך', 'שלח לך', 'קרח', 'חקת', 'בלק', 'פינחס', 'מטות-מסעי', 'דברים', 'ואתחנן', 'עקב', 'ראה', 'שופטים', 'כי תצא', 'כי תבוא', 'נצבים-וילך'],
+            'L_6_385': ['ראש השנה', 'האזינו', 'חג הסוכות', 'שמחת תורה', 'בראשית', 'נח', 'לך לך', 'וירא', 'חיי שרה', 'תולדות', 'ויצא', 'וישלח', 'וישב', 'מקץ', 'ויגש', 'ויחי', 'שמות', 'וארא', 'בא', 'בשלח', 'יתרו', 'משפטים', 'תרומה', 'תצוה', 'כי תשא', 'ויקהל', 'פקודי', 'ויקרא', 'צו', 'שביעי של פסח', 'שמיני', 'תזריע', 'מצורע', 'אחרי מות', 'קדושים', 'אמור', 'בהר', 'בחוקתי', 'במדבר', 'נשא', 'בהעלותך', 'שלח לך', 'קרח', 'חקת', 'בלק', 'פינחס', 'מטות-מסעי', 'דברים', 'ואתחנן', 'עקב', 'ראה', 'שופטים', 'כי תצא', 'כי תבוא', 'נצבים-וילך']
+        };
+
+        function getParashaNameOffline(date) {
+            const y = date.getFullYear();
+            const m = date.getMonth() + 1;
+            const d = date.getDate();
+            let a = Math.floor((14 - m) / 12);
+            let y_prime = y + 4800 - a;
+            let m_prime = m + 12 * a - 3;
+            let jd = d + Math.floor((153 * m_prime + 2) / 5) + 365 * y_prime + Math.floor(y_prime / 4) - Math.floor(y_prime / 100) + Math.floor(y_prime / 400) - 32045;
+            let dow = (jd + 1) % 7;
+            let shabbatJD = jd + ((6 - dow + 7) % 7);
+
+            function rhJD(year) {
+                let months = Math.floor((235 * year - 234) / 19);
+                let parts = 12084 + 13753 * months;
+                let day = months * 29 + Math.floor(parts / 25920);
+                let remParts = parts % 25920;
+                let isLeapYear = (7 * year + 1) % 19 < 7;
+                let dayOfWeek = (day + 1) % 7;
+                if (dayOfWeek === 1 || dayOfWeek === 4 || dayOfWeek === 6) {
+                    day++;
+                } else if (dayOfWeek === 2 && remParts >= 15 * 1080 + 204 && !isLeapYear) {
+                    day += 2;
+                } else if (dayOfWeek === 3 && remParts >= 21 * 1080 + 589 && ((7 * (year - 1) + 1) % 19 < 7)) {
+                    day++;
+                }
+                return day + 347997;
+            }
+
+            let hYear = Math.floor((shabbatJD - 347997) / 365.2468) + 1;
+            while (shabbatJD < rhJD(hYear)) hYear--;
+            while (shabbatJD >= rhJD(hYear + 1)) hYear++;
+
+            let rh = rhJD(hYear);
+            let nextRh = rhJD(hYear + 1);
+            let yearLen = nextRh - rh;
+            let isLeapYear = (7 * hYear + 1) % 19 < 7;
+            let rhDow = (rh + 1) % 7;
+
+            let key = (isLeapYear ? 'L_' : 'R_') + rhDow + '_' + yearLen;
+            let list = ISRAEL_PARASHA_TABLE[key];
+            if (!list) return 'פרשת השבוע';
+
+            let shabbatList = [];
+            let cur = rh;
+            while ((cur + 1) % 7 !== 6) cur++;
+            while (cur < nextRh) {
+                shabbatList.push(cur);
+                cur += 7;
+            }
+
+            let sIdx = shabbatList.indexOf(shabbatJD);
+            if (sIdx >= 0 && sIdx < list.length) {
+                let p = list[sIdx];
+                if (p.includes('סוכות') || p.includes('פסח') || p.includes('שבועות') || p.includes('שמחת תורה') || p.includes('ראש השנה') || p.includes('יום הכיפורים')) {
+                    return `שבת ${p}`;
+                }
+                return `פרשת ${p}`;
+            }
+            return 'פרשת השבוע';
+        }
+
+        function renderShabbatPrayers() {
+            const container = document.getElementById('shabbatPrayersContainer');
+            if (!container) return;
+
+            const cfg = window.PRAYERS_CONFIG || {};
+            const today = new Date();
+
+            const titleEl = document.getElementById('shabbatMainTitle');
+            const parashaEl = document.getElementById('shabbatParashaTitle');
+
+            if (titleEl) {
+                titleEl.textContent = cfg.shabbatMainTitle || "לוח זמנים לשבת";
+            }
+
+            if (parashaEl) {
+                if (cfg.shabbatParasha && cfg.shabbatParasha !== 'auto') {
+                    parashaEl.textContent = `✦ ${cfg.shabbatParasha} ✦`;
+                } else {
+                    const autoParasha = getParashaNameOffline(today);
+                    parashaEl.textContent = `✦ ${autoParasha} ✦`;
+                }
+            }
+
+            let list = cfg.shabbatPrayers;
+            if (!list || !Array.isArray(list) || list.length === 0) {
+                list = [
+                    { name: "הדלקת נרות", desc: "ערב שבת קודש", time: "17:30" },
+                    { name: "מנחה וקבלת שבת", desc: "״פתח אליהו״ • דרשה וערבית ליל שבת", time: "17:35" },
+                    { name: "שחרית מניין א׳", desc: "״קורבנות״ • 08:00 נשמת כל חי", time: "07:20" },
+                    { name: "שחרית מניין ב׳", desc: "09:30 ישתבח (לקרוא ק״ש לפני התפילה) • קידוש בשני המניינים", time: "09:00" },
+                    { name: "תהילים ו״ימלוך״", desc: "סדר לימוד ותהילים לילדים (09:45–10:45)", time: "09:45" },
+                    { name: "שיעור בגמרא", desc: "מסכת סוכה", time: "16:45" },
+                    { name: "מנחה של שבת", desc: "", time: "17:15" },
+                    { name: "סעודה שלישית", desc: "שיעור נביא ושירי שבת", time: "בין מנחה לערבית" },
+                    { name: "ערבית למוצאי שבת", desc: "תפילת ערבית והבדלה", time: "18:41" }
+                ];
+            }
+
+            container.innerHTML = list.map(item => {
+                let timeStr = item.time || '';
+                let isTimeValue = true;
+
+                if (/[א-תA-Za-z]/.test(timeStr)) {
+                    isTimeValue = false;
+                }
+
+                const timeHtml = isTimeValue 
+                    ? `<div class="prayer-time-value">${timeStr}</div>`
+                    : `<div class="prayer-time-text">${timeStr}</div>`;
+
+                return `
+                    <div class="prayer-row">
+                        <div class="prayer-info">
+                            <span class="prayer-bullet-icon">✡</span>
+                            <span class="prayer-label">${item.name}</span>
+                            ${item.desc ? `<span class="prayer-desc">${item.desc}</span>` : ''}
+                        </div>
+                        ${timeHtml}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderKollelNotice() {
+            const container = document.getElementById('kollelContainer');
+            if (!container) return;
+
+            const cfg = window.PRAYERS_CONFIG || {};
+            const k = cfg.kollelNotice || {
+                title: "כולל בוקר",
+                scheduleDays: "ימים ראשון עד חמישי",
+                scheduleHours: "10:00 – 12:00",
+                curriculum: [
+                    { subject: "גמרא", desc: "לימוד דף יומי בעיון ובקיאות" },
+                    { subject: "פרשת שבוע", desc: "לימוד מעמיק עם ראשונים" },
+                    { subject: "שיעור בהלכה", desc: "יורה דעה חלק א׳ — הלכות שחיטה ושימוש מעשי" }
+                ],
+                teacher: {
+                    prefix: "בהדרכת מורנו ורבנו",
+                    name: "הרב גדעון שניאור שליט\"א",
+                    title: "רב ומו\"צ שכונות יפה נוף ובית הכרם"
+                },
+                contact: "הגבאי אפי די זהב: 050-9125756",
+                refreshments: "כיבוד קל מוגש במקום"
+            };
+
+            const titleEl = document.getElementById('kollelMainTitle');
+            if (titleEl && k.title) {
+                titleEl.textContent = k.title;
+            }
+
+            const curriculumHtml = (k.curriculum || []).map(item => `
+                <div class="kollel-subject-row">
+                    <span class="kollel-subject-bullet">✦</span>
+                    <span class="kollel-subject-title">${item.subject}:</span>
+                    <span class="kollel-subject-desc">${item.desc}</span>
+                </div>
+            `).join('');
+
+            container.innerHTML = `
+                <div class="kollel-time-pill">
+                    <span class="pill-days">${k.scheduleDays || "ימים ראשון עד חמישי"}</span>
+                    <span class="pill-divider">✦</span>
+                    <span class="pill-hours">${k.scheduleHours || "10:00 – 12:00"}</span>
+                </div>
+
+                <div class="kollel-curriculum-box">
+                    ${curriculumHtml}
+                </div>
+
+                <div class="kollel-rabbi-card">
+                    <div class="kollel-rabbi-prefix">${k.teacher?.prefix || "בהדרכת מורנו ורבנו"}</div>
+                    <div class="kollel-rabbi-name">${k.teacher?.name || "הרב גדעון שניאור שליט\"א"}</div>
+                    <div class="kollel-rabbi-title">${k.teacher?.title || "רב ומו\"צ שכונות יפה נוף ובית הכרם"}</div>
+                </div>
+
+                <div class="kollel-footer-strip">
+                    <div class="kollel-footer-contact">
+                        <span>📞</span>
+                        <span>${k.contact || "לפרטים: הגבאי אפי די זהב 050-9125756"}</span>
+                    </div>
+                    <div class="kollel-footer-note">${k.refreshments || "כיבוד קל מוגש במקום"}</div>
+                </div>
+            `;
+        }
+
+        function updateAllDates() {
+            const today = new Date();
+
+            const dayName = HEBREW_DAYS[today.getDay()];
+            const dayNum = today.getDate();
+            const monthName = SECULAR_MONTHS[today.getMonth()];
+            const yearNum = today.getFullYear();
+            document.getElementById('secularDate').textContent = `יום ${dayName}, ${dayNum} ב${monthName} ${yearNum}`;
+
+            try {
+                const hDate = getHebrewDateOffline(today);
+                const jDayStr = toHebrewNumeral(hDate.day);
+                const jMonthStr = JEWISH_MONTHS[hDate.month] || '';
+                const jYearStr = toHebrewNumeral(hDate.year % 1000);
+                document.getElementById('hebrewDate').textContent = `${jDayStr} ב${jMonthStr} ${jYearStr}`;
+            } catch (e) {
+                console.error('Error calculating Hebrew date:', e);
+            }
+        }
+
+        function updateAllZmanim() {
+            try {
+                const today = new Date();
+                const z = calculateJerusalemZmanimOffline(today);
+
+                document.getElementById('zmAlos').textContent       = z.alos;
+                document.getElementById('zmMisheyakir').textContent = z.misheyakir;
+                document.getElementById('zmNetz').textContent       = z.netz;
+                document.getElementById('zmSofZman').textContent     = `${z.sofShmaMGA} / ${z.sofShmaGRA}`;
+                document.getElementById('zmChatzot').textContent     = z.chatzot;
+                document.getElementById('zmShkia').textContent       = z.shkia;
+                document.getElementById('zmTzet').textContent        = z.tzet;
+                const elTzetRT = document.getElementById('zmTzetRT');
+                if (elTzetRT) elTzetRT.textContent = z.tzetRT;
+
+                renderWeekdayPrayers();
+                renderShabbatPrayers();
+                renderKollelNotice();
+
+            } catch (e) {
+                console.error('Error calculating Zmanim:', e);
+            }
+        }
+
+        function updateAnalogClock() {
+            const now = new Date();
+            const ms = now.getMilliseconds();
+            const sec = now.getSeconds() + ms / 1000;
+            const min = now.getMinutes() + sec / 60;
+            const hr = (now.getHours() % 12) + min / 60;
+
+            const secHand = document.getElementById('secondHandGroup');
+            const minHand = document.getElementById('minuteHandGroup');
+            const hrHand = document.getElementById('hourHandGroup');
+
+            if (secHand) secHand.style.transform = `rotate(${sec * 6}deg)`;
+            if (minHand) minHand.style.transform = `rotate(${min * 6}deg)`;
+            if (hrHand) hrHand.style.transform = `rotate(${hr * 30}deg)`;
+
+            requestAnimationFrame(updateAnalogClock);
+        }
+
+        /* ── Memorial List (Slide 4) - Smart Filter & Auto-Paging ──────── */
+        let memorialPagingTimer = null;
+        let memorialCurrentPage = 0;
+        let memorialTotalPages = 1;
+
+        function loadDeceasedWeekly() {
+            const container = document.getElementById('memorialContainer');
+            const paginationBar = document.getElementById('memorialPaginationBar');
+            if (!container) return;
+
+            const cfg = window.PRAYERS_CONFIG || {};
+            let deceasedList = cfg.memorialList || [];
+
+            if (!deceasedList || deceasedList.length === 0) {
+                deceasedList = [
+                    { firstName: "אברהם", lastName: "כהן", parentName: "יצחק", hebrewDay: 17, hebrewMonth: 6, hebrewDateStr: "י״ז באלול", gender: "m" },
+                    { firstName: "שרה", lastName: "לוי", parentName: "מרים", hebrewDay: 17, hebrewMonth: 6, hebrewDateStr: "י״ז באלול", gender: "f" },
+                    { firstName: "יעקב", lastName: "מזרחי", parentName: "שמחה", hebrewDay: 18, hebrewMonth: 6, hebrewDateStr: "י״ח באלול", gender: "m" },
+                    { firstName: "רחל", lastName: "דיין", parentName: "אסתר", hebrewDay: 18, hebrewMonth: 6, hebrewDateStr: "י״ח באלול", gender: "f" },
+                    { firstName: "משה", lastName: "אזולאי", parentName: "דוד", hebrewDay: 19, hebrewMonth: 6, hebrewDateStr: "י״ט באלול", gender: "m" }
+                ];
+            }
+
+            const today = new Date();
+            const currentDow = today.getDay();
+            const sundayDate = new Date(today);
+            sundayDate.setDate(today.getDate() - currentDow);
+
+            const thisWeekDates = [];
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(sundayDate);
+                d.setDate(sundayDate.getDate() + i);
+                const h = getHebrewDateOffline(d);
+                thisWeekDates.push({ day: h.day, month: h.month, dow: i });
+            }
+
+            const weeklyDeceased = deceasedList.filter(item => {
+                return thisWeekDates.some(w => w.day === item.hebrewDay && w.month === item.hebrewMonth);
+            });
+
+            // מיון כרונולוגי לפי סדר ימי השבוע (מיום ראשון ועד שבת קודש)
+            weeklyDeceased.sort((a, b) => {
+                const idxA = thisWeekDates.findIndex(w => w.day === a.hebrewDay && w.month === a.hebrewMonth);
+                const idxB = thisWeekDates.findIndex(w => w.day === b.hebrewDay && w.month === b.hebrewMonth);
+                if (idxA !== idxB) return idxA - idxB;
+                return (a.name || '').localeCompare(b.name || '', 'he');
+            });
+
+            const fallbackList = [...deceasedList].sort((a, b) => {
+                if (a.hebrewMonth !== b.hebrewMonth) return a.hebrewMonth - b.hebrewMonth;
+                return (a.hebrewDay || 0) - (b.hebrewDay || 0);
+            }).slice(0, 6);
+
+            const displayList = weeklyDeceased.length > 0 ? weeklyDeceased : fallbackList;
+
+            // Display 5 names per page in clean seamless rows
+            const pageSize = 5;
+            memorialTotalPages = Math.ceil(displayList.length / pageSize);
+
+            if (memorialCurrentPage >= memorialTotalPages) {
+                memorialCurrentPage = 0;
+            }
+
+            function renderCurrentMemorialPage() {
+                const startIdx = memorialCurrentPage * pageSize;
+                const pageItems = displayList.slice(startIdx, startIdx + pageSize);
+
+                const itemsHtml = pageItems.map(person => {
+                    const benBat = person.gender === 'f' ? 'בת' : 'בן';
+                    const rawName = (person.name || `${person.firstName || ''} ${person.lastName || ''}`).trim();
+                    const hasSuffix = /(ז״ל|ז"ל|זצ״ל|זצ"ל|ע״ה|ע"ה)$/.test(rawName);
+                    const displayName = hasSuffix ? rawName : `${rawName} ז״ל`;
+                    const relationStr = person.parentName && person.parentName.trim() ? `(${benBat} ${person.parentName.trim()})` : '';
+
+                    return `
+                        <div class="memorial-row">
+                            <div class="memorial-info">
+                                <span class="candle-icon">🕯️</span>
+                                <span class="deceased-name">${displayName}</span>
+                                ${relationStr ? `<span class="deceased-relation">${relationStr}</span>` : ''}
+                            </div>
+                            <div class="deceased-date">${person.hebrewDateStr}</div>
+                        </div>
+                    `;
+                }).join('');
+
+                container.className = 'memorial-container';
+                container.innerHTML = itemsHtml;
+
+                if (paginationBar) {
+                    if (memorialTotalPages > 1) {
+                        const dotsHtml = Array.from({ length: memorialTotalPages }, (_, i) => 
+                            `<span class="memorial-page-dot ${i === memorialCurrentPage ? 'active-dot' : ''}"></span>`
+                        ).join('');
+
+                        paginationBar.innerHTML = `<div class="memorial-page-dots">${dotsHtml}</div>`;
+                    } else {
+                        paginationBar.innerHTML = '';
+                    }
+                }
+            }
+
+            renderCurrentMemorialPage();
+
+            if (memorialPagingTimer) {
+                clearInterval(memorialPagingTimer);
+                memorialPagingTimer = null;
+            }
+
+            const currentActiveSlide = (slides && slides[currentSlideIdx]) || '';
+            if (currentActiveSlide === 'slide4' && memorialTotalPages > 1) {
+                memorialPagingTimer = setInterval(() => {
+                    container.classList.add('fade-out');
+                    setTimeout(() => {
+                        memorialCurrentPage = (memorialCurrentPage + 1) % memorialTotalPages;
+                        renderCurrentMemorialPage();
+                        container.classList.remove('fade-out');
+                    }, 350);
+                }, 5000);
+            }
+        }
+
+        /* ── Donations & Dual QR Code (Slide 5) ───────────────────────── */
+        function renderDonationsSlide() {
+            const container = document.getElementById('donationsLayout');
+            if (!container) return;
+
+            const cfg = window.PRAYERS_CONFIG || {};
+            const d = cfg.donationsConfig || {
+                title: "תרומות והחזקת בית הכנסת",
+                subtitle: "״וכל מי שעוסקים בצרכי ציבור באמונה ישלם שכרם״",
+                bankName: "מזרחי טפחות (20)",
+                branch: "סניף 479",
+                accountNum: "146384",
+                accountName: "בית הכנסת הספרדי יפה נוף",
+                amutaNum: "58-068-527-9",
+                contact: "הגבאי אפי די זהב: 050-9125756",
+                taxNote: "קבלה מוכרת לפי סעיף 46 למס הכנסה",
+                donationUrl: "https://www.matara.pro/nedarimplus/online/?mosad=7002527",
+                whatsappUrl: "https://chat.whatsapp.com/FBJ334NFykuLwXu7k7yGsp?mode=gi_t"
+            };
+
+            const titleEl = document.getElementById('donationsMainTitle');
+            if (titleEl && d.title) titleEl.textContent = d.title;
+
+            const subEl = document.getElementById('donationsSubtitle');
+            if (subEl && d.subtitle) subEl.textContent = `✦ ${d.subtitle} ✦`;
+
+            let donationQrSvg = '';
+            let whatsappQrSvg = '';
+            if (typeof generateQRCodeSVG === 'function') {
+                donationQrSvg = generateQRCodeSVG(d.donationUrl || "https://www.matara.pro/nedarimplus/online/?mosad=7002527", "#0e2753");
+                whatsappQrSvg = generateQRCodeSVG(d.whatsappUrl || "https://chat.whatsapp.com/FBJ334NFykuLwXu7k7yGsp?mode=gi_t", "#0e2753");
+            }
+
+            container.innerHTML = `
+                <!-- סקשן 1: פרטי העברה בנקאית -->
+                <div class="donations-section">
+                    <div class="section-badge-header">
+                        <span class="section-header-title">🏦 פרטי חשבון להעברה בנקאית</span>
+                    </div>
+                    <div class="bank-details-rows">
+                        <!-- שורה 1: בנק וסניף + מספר חשבון מודגש -->
+                        <div class="bank-row-item">
+                            <div class="bank-col">
+                                <span class="cell-label">בנק וסניף:</span>
+                                <span class="cell-val">${d.bankName} • ${d.branch}</span>
+                            </div>
+                            <div class="bank-col">
+                                <span class="cell-label">מספר חשבון:</span>
+                                <span class="cell-val acct-num">${d.accountNum}</span>
+                            </div>
+                        </div>
+
+                        <!-- שורה 2: שם החשבון (שורה נפרדת) -->
+                        <div class="bank-row-item">
+                            <div class="bank-col">
+                                <span class="cell-label">שם החשבון:</span>
+                                <span class="cell-val">${d.accountName}</span>
+                            </div>
+                        </div>
+
+                        <!-- שורה 3: עמותה רשומה וסעיף 46 -->
+                        <div class="bank-row-item">
+                            <div class="bank-col">
+                                <span class="cell-label">עמותה רשומה:</span>
+                                <span class="cell-val">${d.amutaNum}</span>
+                            </div>
+                            ${d.taxNote ? `
+                            <div class="bank-col">
+                                <span class="cell-val tax-text">✓ ${d.taxNote}</span>
+                            </div>` : ''}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- סקשן 2: תרומה מקוונת והצטרפות בסריקה -->
+                <div class="donations-section">
+                    <div class="section-badge-header">
+                        <span class="section-header-title">📱 סריקה מהירה מהטלפון הנייד</span>
+                    </div>
+                    <div class="qrs-row-container">
+                        <!-- QR 1: תרומה מקוונת (נדרים פלוס) -->
+                        <div class="qr-col-item">
+                            <div class="qr-frame-box">${donationQrSvg}</div>
+                            <div class="qr-info-box">
+                                <div class="qr-title-text">תרומה מקוונת (נדרים פלוס)</div>
+                                <div class="qr-sub-text">תשלום מאובטח באשראי • Bit • הו״ק</div>
+                            </div>
+                        </div>
+
+                        <!-- QR 2: קבוצת וואטסאפ -->
+                        <div class="qr-col-item">
+                            <div class="qr-frame-box">${whatsappQrSvg}</div>
+                            <div class="qr-info-box">
+                                <div class="qr-title-text">קבוצת הוואטסאפ של בית הכנסת</div>
+                                <div class="qr-sub-text">עדכוני זמני תפילות והודעות הגבאי</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- שורה תחתונה: לבירורים והקדשות (2 שורות למטה) -->
+                <div class="donations-bottom-contact">
+                    <span class="contact-label">📞 לבירורים והקדשות:</span>
+                    <span class="contact-val">${d.contact}</span>
+                </div>
+            `;
+        }
+
+        /* ── Slide 6: Shabbat Shuva & Drasha Notice ───────────────────── */
+        function renderShabbatShuvaNotice() {
+            const container = document.getElementById('shabbatShuvaContainer');
+            if (!container) return;
+
+            const cfg = window.PRAYERS_CONFIG || {};
+            const s = cfg.shabbatShuvaNotice || {
+                title: "יום שבת פרשת ״האזינו״",
+                subTitle: "ח׳ תשרי, התשפ״ז • בית הכנסת הספרדי הגדול ״יפה נוף״",
+                prayers: [
+                    { time: "07:20", name: "שחרית מניין א׳", desc: "" },
+                    { time: "09:00", name: "שחרית מניין ב׳", desc: "" },
+                    { time: "17:00", name: "מנחה וסעודה שלישית", desc: "סעודה ג׳ בהיכל" },
+                    { time: "19:16", name: "ערבית מוצאי שבת", desc: "צאת השבת" }
+                ],
+                drasha: {
+                    badge: "דרשת שבת שובה",
+                    topic: "״בין אדם לחברו״",
+                    speaker: "הרה״ג גדעון שניאור שליט״א",
+                    speakerTitle: "רב ומו״צ ק״ק בית הכרם ויפה נוף",
+                    timeInfo: "לאחר סעודה שלישית (זמן משוער: 18:00)"
+                },
+                footerBlessing: "בברכת כתיבה וחתימה טובה, בספר החיים והשלום, לשנים רבות נעימות וטובות."
+            };
+
+            const titleEl = document.getElementById('shabbatShuvaTitle');
+            if (titleEl && s.title) titleEl.textContent = s.title;
+
+            const subEl = document.getElementById('shabbatShuvaSubTitle');
+            if (subEl && s.subTitle) subEl.textContent = `✦ ${s.subTitle} ✦`;
+
+            const prayersPills = (s.prayers || []).map(p => `
+                <div class="shuva-prayer-pill">
+                    <span class="shuva-prayer-name">${p.name}</span>
+                    <span class="shuva-prayer-time">${p.time}</span>
+                </div>
+            `).join('');
+
+            const d = s.drasha || {};
+
+            container.innerHTML = `
+                <!-- שורת זמני תפילות השבת -->
+                <div class="shuva-prayers-strip">
+                    ${prayersPills}
+                </div>
+
+                <!-- כרטיס דרשת שבת שובה המרכזית -->
+                <div class="shuva-drasha-card">
+                    <div class="shuva-drasha-badge">⭐ ${d.badge || 'דרשת שבת שובה'} ⭐</div>
+                    <div class="shuva-drasha-topic">${d.topic || '״בין אדם לחברו״'}</div>
+                    <div class="shuva-drasha-speaker">על ידי ${d.speaker || 'הרה״ג גדעון שניאור שליט״א'}</div>
+                    <div class="shuva-drasha-title">${d.speakerTitle || 'רב ומו״צ ק״ק בית הכרם ויפה נוף'}</div>
+                    <div class="shuva-drasha-time">
+                        <span>⏰ ${d.timeInfo || 'לאחר סעודה שלישית (זמן משוער: 18:00)'}</span>
+                    </div>
+                </div>
+
+                <!-- שורת ברכה תחתונה -->
+                <div class="holiday-blessing-strip">
+                    <span>${s.footerBlessing || 'בברכת כתיבה וחתימה טובה, בספר החיים והשלום, לשנים רבות נעימות וטובות.'}</span>
+                </div>
+            `;
+        }
+
+        /* ── Slide 7: Yom Kippur Prayers Schedule ─────────────────────── */
+        /* ── Slide 7: Holiday Schedule (שמחת תורה / מועדים) ────────── */
+        function renderYomKippurSchedule() {
+            const container = document.getElementById('yomKippurContainer');
+            if (!container) return;
+
+            const cfg = window.PRAYERS_CONFIG || {};
+            const holiday = (cfg.simchatTorahEnabled !== false && cfg.simchatTorahSchedule) ? cfg.simchatTorahSchedule : (cfg.yomKippurSchedule || {});
+
+            const titleEl = document.getElementById('yomKippurTitle');
+            if (titleEl && holiday.title) titleEl.textContent = holiday.title;
+
+            const subEl = document.getElementById('yomKippurSubTitle');
+            if (subEl && holiday.subTitle) subEl.textContent = `✦ ${holiday.subTitle} ✦`;
+
+            function renderEventsColumn(sched) {
+                if (!sched) return '';
+                const items = sched.items || sched.events || [];
+                const rowsHtml = items.map(it => {
+                    if (it.type === 'banner') {
+                        return `
+                            <div class="yk-banner-box">
+                                <div class="yk-banner-title">${it.title}</div>
+                                ${it.subtitle ? `<div class="yk-banner-subtitle">${it.subtitle}</div>` : ''}
+                            </div>
+                        `;
+                    }
+                    if (it.type === 'note') {
+                        return `
+                            <div class="yk-note-box">
+                                <span>${it.text}</span>
+                            </div>
+                        `;
+                    }
+                    const hasTime = it.time && it.time.trim() !== '';
+                    return `
+                        <div class="yk-event-row">
+                            <div class="yk-event-name-group">
+                                <div class="yk-event-main-line">
+                                    ${!hasTime ? '<span class="yk-bullet-dot">✦</span>' : ''}
+                                    <span class="yk-event-name">${it.name}</span>
+                                </div>
+                                ${it.desc ? `<span class="yk-event-desc">${it.desc}</span>` : ''}
+                            </div>
+                            ${hasTime ? `<span class="yk-event-time">${it.time}</span>` : ''}
+                        </div>
+                    `;
+                }).join('');
+
+                return `
+                    <div class="yk-column-card">
+                        <div class="yk-column-header">
+                            <span class="yk-column-title">✦ ${sched.dayTitle} ✦</span>
+                        </div>
+                        <div class="yk-events-list">
+                            ${rowsHtml}
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = `
+                <!-- פסוק בראש הדף -->
+                <div class="yk-verse-box">
+                    <span class="yk-verse-text">${holiday.verse || '״הביאני המלך חדריו נגילה ונשמחה בך״'}</span>
+                </div>
+
+                <!-- שני טורים: ערב החג ויום החג -->
+                <div class="yk-columns-grid">
+                    ${renderEventsColumn(holiday.eveSchedule)}
+                    ${renderEventsColumn(holiday.daySchedule)}
+                </div>
+
+                <!-- שורת ברכה תחתונה -->
+                <div class="holiday-blessing-strip">
+                    <span>${holiday.footerBlessing || 'בברכת מועדים לשמחה חגים וזמנים לששון • הרב גדעון שניאור רב הקהילה'}</span>
+                </div>
+            `;
+        }
+
+        /* ── Slide 8: Condolence Notice (מודעת השתתפות בצער) ────────── */
+        function renderCondolenceNotice() {
+            const container = document.getElementById('condolenceContainer');
+            if (!container) return;
+
+            const cfg = window.PRAYERS_CONFIG || {};
+            const c = cfg.condolenceNotice || {
+                enabled: true,
+                durationSeconds: 10,
+                title: "ברוך דיין האמת",
+                subtitle: "הודעת אבל והשתתפות בצער",
+                introText: "קהילת בית הכנסת משתתפת בצערה העמוק של המשפחה על פטירתו של",
+                mournerName: "",
+                relationText: "אבינו וסבנו היקר",
+                deceasedName: "שלמה ״מוצי״ הוד ז״ל",
+                funeralDetails: "יום שישי ה-9.10.26, כ״ח תשרי תשפ״ז, בשעה 13:15 בבית העלמין גבעת שאול, בית הלוויות הספרדי, ירושלים",
+                shivaLocation: "בבית המשפחה, רח׳ נוף הרים 15, ירושלים",
+                shivaHours: "",
+                mourners: "המשפחה האבלה",
+                blessing: "״המקום ינחם אתכם בתוך שאר אבלי ציון וירושלים ולא תוסיפו לדאבה עוד״"
+            };
+
+            const titleEl = document.getElementById('condolenceMainTitle');
+            if (titleEl && c.title) titleEl.textContent = c.title;
+
+            const subEl = document.getElementById('condolenceSubtitle');
+            if (subEl && c.subtitle) subEl.textContent = `✦ ${c.subtitle} ✦`;
+
+            container.innerHTML = `
+                <div class="condolence-card">
+                    <div class="condolence-candle-row">
+                        <span class="condolence-candle">🕯️</span>
+                    </div>
+                    ${c.introText ? `<div class="condolence-intro-text">${c.introText}</div>` : ''}
+                    ${c.relationText ? `<div class="condolence-relation-text">${c.relationText}</div>` : ''}
+                    ${c.mournerName ? `<div class="condolence-mourner-name">${c.mournerName}</div>` : ''}
+                    <div class="condolence-deceased-box">
+                        <span class="condolence-deceased-name">${c.deceasedName || "שלמה ״מוצי״ הוד ז״ל"}</span>
+                    </div>
+                    ${c.funeralDetails ? `
+                    <div class="condolence-funeral-box">
+                        <div class="funeral-title-badge">ההלוויה:</div>
+                        <div class="funeral-details-text">${c.funeralDetails}</div>
+                    </div>` : ''}
+                    ${(c.shivaLocation || c.shivaHours) ? `
+                    <div class="condolence-shiva-box">
+                        <div class="shiva-title-badge">יושבים שבעה:</div>
+                        <div class="shiva-details-text">
+                            ${c.shivaLocation ? `<span>${c.shivaLocation}</span>` : ''}
+                            ${(c.shivaLocation && c.shivaHours) ? `<span class="shiva-sep">|</span>` : ''}
+                            ${c.shivaHours ? `<span><strong>שעות ניחום:</strong> ${c.shivaHours}</span>` : ''}
+                        </div>
+                    </div>` : ''}
+                    ${c.mourners ? `<div class="condolence-mourners-signature">${c.mourners}</div>` : ''}
+                    <div class="condolence-blessing-text">
+                        ${c.blessing || "״המקום ינחם אתכם בתוך שאר אבלי ציון וירושלים ולא תוסיפו לדאבה עוד״"}
+                    </div>
+                </div>
+            `;
+        }
+
+        /* ── Slide Rotator & Quick Testing Navigation ─────────────────── */
+        function getActiveSlides() {
+            const base = ['slide1', 'slide2', 'slide3', 'slide4'];
+            if (window.PRAYERS_CONFIG && window.PRAYERS_CONFIG.condolenceNotice && window.PRAYERS_CONFIG.condolenceNotice.enabled === true) {
+                base.push('slide8');
+            }
+            base.push('slide5');
+            if (window.PRAYERS_CONFIG && window.PRAYERS_CONFIG.shabbatShuvaEnabled === true) {
+                base.push('slide6');
+            }
+            if (window.PRAYERS_CONFIG && window.PRAYERS_CONFIG.holidaySlidesEnabled === true) {
+                base.push('slide7');
+            }
+            return base;
+        }
+
+        let slides = getActiveSlides();
+        let currentSlideIdx = 0;
+        let slideTimer = null;
+        let isPaused = false;
+
+        function goToSlide(targetIdx) {
+            slides = getActiveSlides();
+            targetIdx = ((targetIdx % slides.length) + slides.length) % slides.length;
+            
+            // First hide all possible slide elements
+            ['slide1', 'slide2', 'slide3', 'slide4', 'slide5', 'slide6', 'slide7', 'slide8'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove('active-slide');
+            });
+
+            const activeId = slides[targetIdx];
+            const activeEl = document.getElementById(activeId);
+            if (activeEl) {
+                activeEl.classList.add('active-slide');
+            }
+
+            currentSlideIdx = targetIdx;
+            
+            // Re-trigger slide 4 paging from start if activating slide 4
+            if (activeId === 'slide4') {
+                memorialCurrentPage = 0;
+                loadDeceasedWeekly();
+            } else if (memorialPagingTimer) {
+                clearInterval(memorialPagingTimer);
+                memorialPagingTimer = null;
+            }
+
+            resetSlideTimer();
+        }
+
+        function rotateSlides() {
+            if (isPaused) {
+                slideTimer = setTimeout(rotateSlides, 1000);
+                return;
+            }
+            goToSlide(currentSlideIdx + 1);
+        }
+
+        function resetSlideTimer() {
+            if (slideTimer) {
+                clearTimeout(slideTimer);
+                slideTimer = null;
+            }
+            const activeId = (slides && slides[currentSlideIdx]) || '';
+            let durationMs;
+            if (activeId === 'slide4') {
+                // 5 שניות לכל דף נפטרים (1 דף = 5 שניות, 2 דפים = 10 שניות וכו')
+                const pages = Math.max(1, memorialTotalPages || 1);
+                durationMs = pages * 5000;
+            } else if (activeId === 'slide8') {
+                // 5 שניות למודעת אבל והשתתפות בצער
+                const cDur = (window.PRAYERS_CONFIG && window.PRAYERS_CONFIG.condolenceNotice && window.PRAYERS_CONFIG.condolenceNotice.durationSeconds) || 5;
+                durationMs = cDur * 1000;
+            } else {
+                durationMs = ((window.PRAYERS_CONFIG && window.PRAYERS_CONFIG.slideDurationSeconds) || 30) * 1000;
+            }
+            slideTimer = setTimeout(rotateSlides, durationMs);
+        }
+
+        // ── Realtime Firebase & LocalStorage Sync ─────────────────────
+        function applyConfigUpdates(newConfig) {
+            if (!newConfig) return;
+            window.PRAYERS_CONFIG = Object.assign(window.PRAYERS_CONFIG || {}, newConfig);
+            try {
+                renderWeekdayPrayers();
+                renderShabbatPrayers();
+                renderKollelNotice();
+                loadDeceasedWeekly();
+                renderCondolenceNotice();
+                renderDonationsSlide();
+                renderShabbatShuvaNotice();
+                renderYomKippurSchedule();
+                slides = getActiveSlides();
+                resetSlideTimer();
+                console.log("🔄 Config updated and re-rendered successfully");
+            } catch (err) {
+                console.error("Error re-rendering config:", err);
+            }
+        }
+
+        const DEFAULT_FIREBASE_CONFIG = {
+            projectId: "yefenof-b90a0",
+            appId: "1:173621535861:web:2a347a5ed3e5cf2544443c",
+            storageBucket: "yefenof-b90a0.firebasestorage.app",
+            apiKey: "AIzaSyDbepCS0E86kok8zjR33u_UGR3oyAKgXSs",
+            authDomain: "yefenof-b90a0.firebaseapp.com",
+            messagingSenderId: "173621535861"
+        };
+
+        function initCloudSync() {
+            const baseVersion = (window.PRAYERS_CONFIG && window.PRAYERS_CONFIG.configVersion) || 0;
+
+            // 1. Check LocalStorage
+            const localSaved = localStorage.getItem('SYNAGOGUE_PRAYERS_CONFIG');
+            if (localSaved) {
+                try {
+                    const parsed = JSON.parse(localSaved);
+                    if ((parsed.configVersion || 0) >= baseVersion) {
+                        applyConfigUpdates(parsed);
+                    } else {
+                        localStorage.setItem('SYNAGOGUE_PRAYERS_CONFIG', JSON.stringify(window.PRAYERS_CONFIG));
+                    }
+                } catch (e) {}
+            }
+
+            // 2. Check Firebase Firestore
+            let fbConfig = DEFAULT_FIREBASE_CONFIG;
+            const savedFb = localStorage.getItem('SYNAGOGUE_FIREBASE_CONFIG');
+            if (savedFb) {
+                try {
+                    const parsed = JSON.parse(savedFb);
+                    if (parsed && parsed.projectId && parsed.apiKey) fbConfig = parsed;
+                } catch (e) {}
+            }
+
+            if (fbConfig && fbConfig.projectId && typeof firebase !== 'undefined') {
+                try {
+                    if (!firebase.apps.length) {
+                        firebase.initializeApp(fbConfig);
+                    }
+                    const db = firebase.firestore();
+                    db.collection('synagogue').doc('mainConfig')
+                        .onSnapshot((doc) => {
+                            if (doc.exists) {
+                                const cloudData = doc.data();
+                                if ((cloudData.configVersion || 0) >= baseVersion) {
+                                    console.log("☁️ Real-time cloud update received from Firebase!");
+                                    applyConfigUpdates(cloudData);
+                                } else {
+                                    console.log("☁️ Local prayers_config.js is newer than cloud; syncing to Firebase...");
+                                    db.collection('synagogue').doc('mainConfig').set(window.PRAYERS_CONFIG).catch(() => {});
+                                }
+                            }
+                        }, (err) => {
+                            console.warn("Firestore snapshot running in offline mode:", err);
+                        });
+                } catch (e) {
+                    console.warn("Firebase sync skipped:", e);
+                }
+            }
+        }
+
+        // מקשי קיצור לבדיקה מהירה: מקשים 1-7, חיצים ימינה/שמאלה, רווח, מקש P להשהיה, ו-Ctrl+Shift+A למעבר לניהול
+        window.addEventListener('keydown', (e) => {
+            const key = e.key;
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && key.toLowerCase() === 'a') {
+                window.open('admin.html', '_blank');
+                return;
+            }
+            slides = getActiveSlides();
+            if (key >= '1' && key <= String(slides.length)) {
+                goToSlide(parseInt(key, 10) - 1);
+            } else if (key === 'ArrowRight' || key === 'ArrowDown' || key === ' ') {
+                goToSlide(currentSlideIdx + 1);
+            } else if (key === 'ArrowLeft' || key === 'ArrowUp') {
+                goToSlide(currentSlideIdx - 1);
+            } else if (key.toLowerCase() === 'p') {
+                isPaused = !isPaused;
+                console.log(isPaused ? '⏸️ Slide rotation PAUSED' : '▶️ Slide rotation RESUMED');
+            }
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initCloudSync();
+            updateAnalogClock();
+            updateAllDates();
+            updateAllZmanim();
+            renderWeekdayPrayers();
+            renderShabbatPrayers();
+            renderKollelNotice();
+            loadDeceasedWeekly();
+            renderCondolenceNotice();
+            renderDonationsSlide();
+            renderShabbatShuvaNotice();
+            renderYomKippurSchedule();
+
+            // בדוק אם יש הגדרת שקופית התחלתית בכתובת ה-URL (#2 או ?slide=2) או בקובץ ההגדרות
+            const hashMatch = window.location.hash.match(/\d+/);
+            const urlParams = new URLSearchParams(window.location.search);
+            const querySlide = urlParams.get('slide');
+            const configSlide = window.PRAYERS_CONFIG && window.PRAYERS_CONFIG.initialSlide;
+
+            slides = getActiveSlides();
+            let startIdx = 0;
+            if (hashMatch) {
+                startIdx = parseInt(hashMatch[0], 10) - 1;
+            } else if (querySlide) {
+                startIdx = parseInt(querySlide, 10) - 1;
+            } else if (typeof configSlide === 'number') {
+                startIdx = configSlide - 1;
+            }
+
+            goToSlide(startIdx >= 0 && startIdx < slides.length ? startIdx : 0);
+
+            setInterval(() => {
+                updateAllDates();
+                updateAllZmanim();
+                renderWeekdayPrayers();
+                renderShabbatPrayers();
+                renderKollelNotice();
+                loadDeceasedWeekly();
+                renderCondolenceNotice();
+                renderDonationsSlide();
+                renderShabbatShuvaNotice();
+                renderYomKippurSchedule();
+            }, 60000);
+        });
+
+        updateAllDates();
+        updateAllZmanim();
+        renderWeekdayPrayers();
+        renderShabbatPrayers();
+        renderKollelNotice();
+        renderCondolenceNotice();
+        renderDonationsSlide();
+        renderShabbatShuvaNotice();
+        renderYomKippurSchedule();
+    </script>
+
+    <!-- Subtle Admin Link Icon -->
+    <a href="admin.html" target="_blank" class="admin-link-btn" title="ניהול לוח בית הכנסת (Ctrl+Shift+A)">⚙️</a>
+</body>
+</html>

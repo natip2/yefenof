@@ -1,0 +1,16 @@
+{
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "soul.csv",
+      "convert_soul.py",
+      "index_old_backup.html"
+    ]
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  }
+}
