@@ -7,7 +7,8 @@
       "**/node_modules/**",
       "soul.csv",
       "convert_soul.py",
-      "index_old_backup.html"
+      "index_old_backup.html",
+      "README.md"
     ]
   },
   "firestore": {

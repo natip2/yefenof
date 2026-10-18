@@ -2123,17 +2123,17 @@
             const minchaDynamicH = sunsetH - (25 / 60);
             const arvitDynamicH  = sunsetH + (30 / 60);
 
-            function formatH(decimalHours) {
+            function formatH(decimalHours, useFloor = false) {
                 if (decimalHours === null || isNaN(decimalHours)) return '--:--';
-                const totalMins = Math.round(decimalHours * 60);
+                const totalMins = useFloor ? Math.floor(decimalHours * 60) : Math.round(decimalHours * 60);
                 const h = Math.floor(totalMins / 60) % 24;
                 const m = totalMins % 60;
                 return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
             }
 
             return {
-                alos: formatH(alosH),
-                misheyakir: formatH(misheyakirH),
+                alos: formatH(alosH, true),
+                misheyakir: formatH(misheyakirH, true),
                 netz: formatH(sunriseH),
                 sofShmaMGA: formatH(sofShmaMGA),
                 sofShmaGRA: formatH(sofShmaGRA),
@@ -2145,6 +2145,139 @@
                 arvitToday: formatH(arvitDynamicH),
                 sunsetHourRaw: sunsetH,
                 sunriseHourRaw: sunriseH
+            };
+        }
+
+        // ── לוח "עתים לבינה" לאופק ירושלים (תשפ"ז - תחילת תשפ"ח) ──────────
+        // מפתח: תאריך לועזי של יום שבת (YYYY-MM-DD)
+        // candles = הדלקת נרות שבת (40 דק' קודם השקיעה מההר), motzash = צאת השבת
+        const ITIM_LEBINA_SHABBAT_TABLE = {
+            '2026-09-12': { candles: '18:14', motzash: '19:25' },
+            '2026-09-19': { candles: '18:05', motzash: '19:16' },
+            '2026-09-26': { candles: '17:56', motzash: '19:06' },
+            '2026-10-03': { candles: '17:47', motzash: '18:57' },
+            '2026-10-10': { candles: '17:38', motzash: '18:49' },
+            '2026-10-17': { candles: '17:30', motzash: '18:41' },
+            '2026-10-24': { candles: '17:22', motzash: '18:34' },
+            '2026-10-31': { candles: '16:16', motzash: '17:27' },
+            '2026-11-07': { candles: '16:10', motzash: '17:22' },
+            '2026-11-14': { candles: '16:05', motzash: '17:18' },
+            '2026-11-21': { candles: '16:02', motzash: '17:15' },
+            '2026-11-28': { candles: '16:00', motzash: '17:14' },
+            '2026-12-05': { candles: '15:59', motzash: '17:14' },
+            '2026-12-12': { candles: '16:00', motzash: '17:15' },
+            '2026-12-19': { candles: '16:03', motzash: '17:18' },
+            '2026-12-26': { candles: '16:06', motzash: '17:21' },
+            '2027-01-02': { candles: '16:11', motzash: '17:26' },
+            '2027-01-09': { candles: '16:16', motzash: '17:31' },
+            '2027-01-16': { candles: '16:22', motzash: '17:37' },
+            '2027-01-23': { candles: '16:28', motzash: '17:43' },
+            '2027-01-30': { candles: '16:35', motzash: '17:49' },
+            '2027-02-06': { candles: '16:41', motzash: '17:55' },
+            '2027-02-13': { candles: '16:47', motzash: '18:00' },
+            '2027-02-20': { candles: '16:53', motzash: '18:06' },
+            '2027-02-27': { candles: '16:58', motzash: '18:11' },
+            '2027-03-06': { candles: '17:04', motzash: '18:16' },
+            '2027-03-13': { candles: '17:09', motzash: '18:21' },
+            '2027-03-20': { candles: '17:14', motzash: '18:26' },
+            '2027-03-27': { candles: '18:18', motzash: '19:31' },
+            '2027-04-03': { candles: '18:23', motzash: '19:36' },
+            '2027-04-10': { candles: '18:28', motzash: '19:41' },
+            '2027-04-17': { candles: '18:33', motzash: '19:46' },
+            '2027-04-24': { candles: '18:38', motzash: '19:52' },
+            '2027-05-01': { candles: '18:43', motzash: '19:57' },
+            '2027-05-08': { candles: '18:47', motzash: '20:03' },
+            '2027-05-15': { candles: '18:52', motzash: '20:08' },
+            '2027-05-22': { candles: '18:57', motzash: '20:14' },
+            '2027-05-29': { candles: '19:02', motzash: '20:19' },
+            '2027-06-05': { candles: '19:06', motzash: '20:23' },
+            '2027-06-12': { candles: '19:09', motzash: '20:27' },
+            '2027-06-19': { candles: '19:11', motzash: '20:29' },
+            '2027-06-26': { candles: '19:13', motzash: '20:30' },
+            '2027-07-03': { candles: '19:13', motzash: '20:30' },
+            '2027-07-10': { candles: '19:12', motzash: '20:29' },
+            '2027-07-17': { candles: '19:10', motzash: '20:26' },
+            '2027-07-24': { candles: '19:06', motzash: '20:21' },
+            '2027-07-31': { candles: '19:02', motzash: '20:16' },
+            '2027-08-07': { candles: '18:56', motzash: '20:10' },
+            '2027-08-14': { candles: '18:49', motzash: '20:02' },
+            '2027-08-21': { candles: '18:42', motzash: '19:54' },
+            '2027-08-28': { candles: '18:34', motzash: '19:45' },
+            '2027-09-04': { candles: '18:25', motzash: '19:36' },
+            '2027-09-11': { candles: '18:16', motzash: '19:27' },
+            '2027-09-18': { candles: '18:07', motzash: '19:17' },
+            '2027-09-25': { candles: '17:58', motzash: '19:08' },
+            '2027-10-02': { candles: '17:48', motzash: '18:59' },
+            '2027-10-09': { candles: '17:40', motzash: '18:50' },
+            '2027-10-16': { candles: '17:31', motzash: '18:42' },
+            '2027-10-23': { candles: '17:24', motzash: '18:35' },
+            '2027-10-30': { candles: '17:17', motzash: '18:28' },
+            '2027-11-06': { candles: '16:11', motzash: '17:23' }
+        };
+
+        function minsToHHMM(totalMins) {
+            const norm = ((Math.round(totalMins) % 1440) + 1440) % 1440;
+            const h = Math.floor(norm / 60);
+            const m = norm % 60;
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        }
+
+        function hhmmToMins(str) {
+            const parts = String(str || '').trim().split(':');
+            if (parts.length !== 2) return null;
+            const h = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10);
+            if (isNaN(h) || isNaN(m)) return null;
+            return h * 60 + m;
+        }
+
+        function getShabbatTimesOffline(refDate) {
+            const d = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate(), 12, 0, 0);
+            const dow = d.getDay(); // 0=Sun..6=Sat
+            const daysUntilShabbat = (6 - dow + 7) % 7;
+            const shabbatDate = new Date(d);
+            shabbatDate.setDate(d.getDate() + daysUntilShabbat);
+            const fridayDate = new Date(shabbatDate);
+            fridayDate.setDate(shabbatDate.getDate() - 1);
+
+            const key = `${shabbatDate.getFullYear()}-${String(shabbatDate.getMonth() + 1).padStart(2, '0')}-${String(shabbatDate.getDate()).padStart(2, '0')}`;
+            let candlesStr, motzashStr;
+
+            if (ITIM_LEBINA_SHABBAT_TABLE[key]) {
+                candlesStr = ITIM_LEBINA_SHABBAT_TABLE[key].candles;
+                motzashStr = ITIM_LEBINA_SHABBAT_TABLE[key].motzash;
+            } else {
+                // גיבוי אסטרונומי מדויק לפי כללי לוח "עתים לבינה" לאופק ירושלים
+                const friZ = calculateJerusalemZmanimOffline(fridayDate);
+                const satZ = calculateJerusalemZmanimOffline(shabbatDate);
+                // שקיעה מההר בירושלים מאוחרת בכ-4.75 דקות משקיעה במישור; הדלקת נרות 40 דק' לפני שקיעה מההר
+                const candlesMins = Math.floor((friZ.sunsetHourRaw * 60) + 4.75 - 40);
+                // צאת השבת (8.5 מעלות תחת האופק - כ-36 דקות אחר השקיעה במישור)
+                const motzashMins = Math.floor((satZ.sunsetHourRaw * 60) + 36);
+                candlesStr = minsToHHMM(candlesMins);
+                motzashStr = minsToHHMM(motzashMins);
+            }
+
+            const candlesMins = hhmmToMins(candlesStr);
+            const motzashMins = hhmmToMins(motzashStr);
+
+            // מנחה ערב שבת: 5 דקות אחרי הדלקת נרות שבת
+            const minchaErevShabbatStr = minsToHHMM(candlesMins + 5);
+
+            // מנחה של שבת: שעה וחצי (90 דק') לפני צאת השבת, מעוגל לרבע שעה הקרובה
+            const minchaShabbatRaw = motzashMins - 90;
+            const minchaShabbatRoundedMins = Math.round(minchaShabbatRaw / 15) * 15;
+            const minchaShabbatStr = minsToHHMM(minchaShabbatRoundedMins);
+
+            // שיעור בשבת: חצי שעה (30 דק') לפני מנחה של שבת
+            const shiurShabbatStr = minsToHHMM(minchaShabbatRoundedMins - 30);
+
+            return {
+                candles: candlesStr,
+                minchaErevShabbat: minchaErevShabbatStr,
+                shiurShabbat: shiurShabbatStr,
+                minchaShabbat: minchaShabbatStr,
+                motzash: motzashStr
             };
         }
 
@@ -2290,12 +2423,61 @@
             return 'פרשת השבוע';
         }
 
+        function normalizeShabbatPrayersList(rawList) {
+            if (!rawList || !Array.isArray(rawList) || rawList.length === 0) {
+                return [
+                    { name: "הדלקת נרות שבת", desc: "ערב שבת קודש", time: "auto:candles" },
+                    { name: "מנחה וקבלת שבת", desc: "״פתח אליהו״ • דרשה וערבית ליל שבת", time: "auto:candles+5" },
+                    { name: "שחרית מניין א׳", desc: "״קורבנות״ • 08:00 נשמת כל חי", time: "07:20" },
+                    { name: "שחרית מניין ב׳", desc: "09:30 ישתבח (לקרוא ק״ש לפני התפילה) • קידוש בשני המניינים", time: "09:00" },
+                    { name: "תהילים ו״ימלוך״", desc: "סדר לימוד ותהילים לילדים (09:45–10:45)", time: "09:45" },
+                    { name: "שיעור בגמרא", desc: "מסכת סוכה", time: "auto:shiur_shabbat" },
+                    { name: "מנחה של שבת", desc: "", time: "auto:mincha_shabbat" },
+                    { name: "סעודה שלישית", desc: "שיעור נביא ושירי שבת", time: "בין מנחה לערבית" },
+                    { name: "ערבית למוצאי שבת", desc: "תפילת ערבית והבדלה", time: "auto:motzash" }
+                ];
+            }
+
+            const list = rawList.map(item => ({ ...item }));
+            // ודא ששורה ראשונה היא תמיד "הדלקת נרות שבת"
+            const hasCandles = list.some(item => (item.name || '').includes('הדלקת נרות'));
+            if (!hasCandles) {
+                list.unshift({ name: "הדלקת נרות שבת", desc: "ערב שבת קודש", time: "auto:candles" });
+            } else if (list[0] && (list[0].name || '').includes('הדלקת נרות')) {
+                list[0].name = "הדלקת נרות שבת";
+            }
+            return list;
+        }
+
+        function resolveShabbatPrayerTime(item, shabbatZmanim) {
+            let timeStr = (item.time || '').trim();
+            const name = (item.name || '').trim();
+
+            if (timeStr === 'auto:candles' || (name.includes('הדלקת נרות') && (timeStr === '17:30' || !timeStr))) {
+                return shabbatZmanim.candles;
+            }
+            if (timeStr === 'auto:candles+5' || (name.includes('מנחה וקבלת שבת') && timeStr === '17:35')) {
+                return shabbatZmanim.minchaErevShabbat;
+            }
+            if (timeStr === 'auto:shiur_shabbat' || (name.includes('שיעור') && timeStr === '16:45')) {
+                return shabbatZmanim.shiurShabbat;
+            }
+            if (timeStr === 'auto:mincha_shabbat' || (name.includes('מנחה של שבת') && timeStr === '17:15')) {
+                return shabbatZmanim.minchaShabbat;
+            }
+            if (timeStr === 'auto:motzash' || (name.includes('ערבית למוצאי שבת') && timeStr === '18:41')) {
+                return shabbatZmanim.motzash;
+            }
+            return timeStr;
+        }
+
         function renderShabbatPrayers() {
             const container = document.getElementById('shabbatPrayersContainer');
             if (!container) return;
 
             const cfg = window.PRAYERS_CONFIG || {};
             const today = new Date();
+            const shabbatZmanim = getShabbatTimesOffline(today);
 
             const titleEl = document.getElementById('shabbatMainTitle');
             const parashaEl = document.getElementById('shabbatParashaTitle');
@@ -2313,23 +2495,10 @@
                 }
             }
 
-            let list = cfg.shabbatPrayers;
-            if (!list || !Array.isArray(list) || list.length === 0) {
-                list = [
-                    { name: "הדלקת נרות", desc: "ערב שבת קודש", time: "17:30" },
-                    { name: "מנחה וקבלת שבת", desc: "״פתח אליהו״ • דרשה וערבית ליל שבת", time: "17:35" },
-                    { name: "שחרית מניין א׳", desc: "״קורבנות״ • 08:00 נשמת כל חי", time: "07:20" },
-                    { name: "שחרית מניין ב׳", desc: "09:30 ישתבח (לקרוא ק״ש לפני התפילה) • קידוש בשני המניינים", time: "09:00" },
-                    { name: "תהילים ו״ימלוך״", desc: "סדר לימוד ותהילים לילדים (09:45–10:45)", time: "09:45" },
-                    { name: "שיעור בגמרא", desc: "מסכת סוכה", time: "16:45" },
-                    { name: "מנחה של שבת", desc: "", time: "17:15" },
-                    { name: "סעודה שלישית", desc: "שיעור נביא ושירי שבת", time: "בין מנחה לערבית" },
-                    { name: "ערבית למוצאי שבת", desc: "תפילת ערבית והבדלה", time: "18:41" }
-                ];
-            }
+            const list = normalizeShabbatPrayersList(cfg.shabbatPrayers);
 
             container.innerHTML = list.map(item => {
-                let timeStr = item.time || '';
+                let timeStr = resolveShabbatPrayerTime(item, shabbatZmanim);
                 let isTimeValue = true;
 
                 if (/[א-תA-Za-z]/.test(timeStr)) {
